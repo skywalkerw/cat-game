@@ -3,9 +3,18 @@
   --bg-panel: #fff9f0;
   --accent: #e8a838;
   --accent-dark: #c8871f;
-  --cat-gold: #f4c56a;
-  --cat-gold-dark: #d4a040;
-  --cat-cream: #ffe8b8;
+  --cat-cream: #faf6ee;
+  --cat-white: #fffdf8;
+  --cat-gold: #d4a050;
+  --cat-gold-mid: #c08838;
+  --cat-gold-dark: #8a6028;
+  --cat-gold-tip: #5c4018;
+  --cat-amber: #687838;
+  --cat-amber-light: #8a9850;
+  --eye-green: #6a7840;
+  --eye-green-light: #9aaa58;
+  --cat-pink: #c87868;
+  --cat-brown: #3a2818;
   --text: #4a3728;
   --text-muted: #8b7355;
   --bar-bg: #e8dcc8;
@@ -133,8 +142,8 @@ body {
 
 .room {
   position: relative;
-  height: 220px;
-  background: linear-gradient(180deg, #e8f4fc 0%, #d4e8f0 35%, #f5ebe0 35%, #ebe0d0 100%);
+  height: 250px;
+  background: linear-gradient(180deg, #e8f4fc 0%, #d4e8f0 32%, #f5ebe0 32%, #ebe0d0 100%);
   border-radius: 14px;
   overflow: hidden;
 }
@@ -167,6 +176,7 @@ body {
   height: 28px;
   background: #c8a878;
   border-radius: 8px 8px 4px 4px;
+  z-index: 0;
 }
 
 .bed::before {
@@ -413,10 +423,11 @@ body {
   100% { opacity: 0; transform: translateY(-22px) scale(1.1); }
 }
 
-/* Cat - Golden Shaded */
+/* ── Cat — Golden Shaded British Shorthair (金渐层) ── */
+
 .cat-container {
   position: absolute;
-  bottom: 28px;
+  bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 2;
@@ -425,20 +436,21 @@ body {
 
 .cat-container.at-bowl {
   left: auto;
-  right: 58px;
+  right: 42px;
   transform: translateX(0);
 }
 
 .cat-container.on-bed {
-  left: 52px;
-  transform: translateX(0);
-  bottom: 22px;
+  left: 56px;
+  transform: translateX(-50%);
+  bottom: 36px;
+  z-index: 2;
 }
 
 .cat-container.at-litter {
   left: 128px;
   transform: translateX(-50%);
-  bottom: 24px;
+  bottom: 20px;
 }
 
 .cat-container.chasing {
@@ -446,10 +458,10 @@ body {
 }
 
 @keyframes catChase {
-  0% { left: 50%; transform: translateX(-50%); }
-  25% { left: 28%; transform: translateX(-50%); }
-  50% { left: 62%; transform: translateX(-50%); }
-  75% { left: 32%; transform: translateX(-50%); }
+  0%   { left: 50%; transform: translateX(-50%); }
+  25%  { left: 28%; transform: translateX(-50%); }
+  50%  { left: 62%; transform: translateX(-50%); }
+  75%  { left: 32%; transform: translateX(-50%); }
   100% { left: 50%; transform: translateX(-50%); }
 }
 
@@ -460,223 +472,439 @@ body {
 
 .cat-body {
   position: relative;
-  width: 100px;
-  height: 70px;
+  width: 112px;
+  height: 74px;
 }
 
+/* ── Torso — plump British Shorthair body ── */
 .cat-torso {
   position: absolute;
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 72px;
-  height: 48px;
-  background: linear-gradient(180deg, var(--cat-gold) 0%, var(--cat-gold-dark) 100%);
-  border-radius: 36px 36px 20px 20px;
-  box-shadow: inset 0 -4px 8px rgba(0, 0, 0, 0.08);
+  width: 86px;
+  height: 56px;
+  background:
+    radial-gradient(ellipse 85% 45% at 50% 22%, #e8c888 0%, transparent 60%),
+    radial-gradient(ellipse 100% 80% at 50% 100%, var(--cat-white) 0%, var(--cat-cream) 35%, transparent 70%),
+    linear-gradient(180deg, #c89848 0%, #b88038 50%, #d4a858 100%);
+  border-radius: 44px 44px 26px 26px;
+  box-shadow:
+    inset 0 -8px 14px rgba(0,0,0,.05),
+    0 3px 12px rgba(74,55,40,.10);
 }
 
 .cat-torso::before {
   content: "";
   position: absolute;
-  top: 8px;
-  left: 12px;
-  right: 12px;
-  height: 20px;
-  background: repeating-linear-gradient(
-    90deg,
-    transparent,
-    transparent 6px,
-    rgba(212, 160, 64, 0.3) 6px,
-    rgba(212, 160, 64, 0.3) 8px
-  );
-  border-radius: 10px;
-  opacity: 0.6;
+  inset: 4px 10px 8px;
+  border-radius: 24px;
+  background:
+    repeating-linear-gradient(
+      78deg,
+      transparent,
+      transparent 8px,
+      rgba(92,64,24,.06) 8px,
+      rgba(92,64,24,.06) 9px
+    );
+  opacity: .55;
 }
 
 .cat-torso::after {
   content: "";
   position: absolute;
   right: -1px;
-  bottom: 16px;
-  width: 11px;
-  height: 13px;
-  background: linear-gradient(135deg, var(--cat-gold) 0%, var(--cat-gold-dark) 100%);
+  bottom: 20px;
+  width: 14px;
+  height: 16px;
+  background: radial-gradient(circle at 65% 50%, #c89848, #a87830);
   border-radius: 0 55% 45% 0;
   z-index: 1;
 }
 
-.cat-head {
+.cat-chest {
   position: absolute;
-  bottom: 38px;
+  bottom: 4px;
   left: 50%;
   transform: translateX(-50%);
-  width: 56px;
-  height: 50px;
+  width: 58px;
+  height: 36px;
+  background: radial-gradient(ellipse 100% 100% at 50% 10%, var(--cat-white) 0%, var(--cat-cream) 65%, transparent 100%);
+  border-radius: 50%;
+  z-index: 1;
+}
+
+/* ── Head — round British Shorthair face ── */
+.cat-head {
+  position: absolute;
+  bottom: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 78px;
+  height: 72px;
+  z-index: 2;
 }
 
 .cat-face {
   position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
-  background: linear-gradient(180deg, var(--cat-cream) 0%, var(--cat-gold) 60%, var(--cat-gold-dark) 100%);
-  border-radius: 50% 50% 45% 45%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background:
+    radial-gradient(ellipse 75% 45% at 50% 98%, var(--cat-white) 0%, var(--cat-cream) 35%, transparent 62%),
+    radial-gradient(ellipse 100% 55% at 50% 8%, #c89848 0%, #d4a858 58%, #e0b868 100%);
+  border-radius: 50%;
+  box-shadow:
+    0 4px 16px rgba(74,55,40,.12),
+    inset 0 -3px 8px rgba(0,0,0,.04);
 }
 
-.cat-ear {
+/* golden tipping on top of head */
+.cat-top-shade {
   position: absolute;
-  top: -8px;
-  width: 18px;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 62px;
   height: 22px;
-  background: var(--cat-gold);
-  border-radius: 50% 50% 0 0;
-  transform-origin: bottom center;
+  background: radial-gradient(ellipse 100% 100% at 50% 0%, #a87830 0%, #c89848 45%, transparent 80%);
+  border-radius: 50% 50% 40% 40%;
+  opacity: .65;
+  pointer-events: none;
+  z-index: 0;
 }
 
-.cat-ear-left {
-  left: 2px;
-  transform: rotate(-18deg);
+/* tabby M marking on forehead */
+.cat-tabby-m {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 12px;
+  pointer-events: none;
 }
-
-.cat-ear-right {
-  right: 2px;
-  transform: rotate(18deg);
-}
-
-.cat-ear::after {
+.cat-tabby-m::before,
+.cat-tabby-m::after {
   content: "";
   position: absolute;
-  inset: 4px 4px auto;
+  top: 0;
+  width: 2px;
   height: 10px;
-  background: #f0b878;
-  border-radius: 50% 50% 0 0;
+  background: var(--cat-gold-tip);
+  border-radius: 1px;
+  opacity: .45;
+}
+.cat-tabby-m::before {
+  left: 4px;
+  transform: rotate(-22deg);
+  box-shadow: 8px 2px 0 var(--cat-gold-tip);
+}
+.cat-tabby-m::after {
+  right: 4px;
+  transform: rotate(22deg);
 }
 
+/* white muzzle / chin patch — kept below eye line */
+.cat-muzzle {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 42px;
+  height: 28px;
+  background: radial-gradient(ellipse 100% 100% at 50% 70%, var(--cat-white) 0%, var(--cat-cream) 75%, transparent 100%);
+  border-radius: 50%;
+  z-index: 0;
+}
+
+/* plump jowls */
+.cat-cheek {
+  position: absolute;
+  bottom: 10px;
+  width: 30px;
+  height: 26px;
+  background: radial-gradient(circle 100% 100% at 50% 30%, var(--cat-white) 40%, #e8c888 100%);
+  border-radius: 50%;
+  z-index: 1;
+}
+.cat-cheek-left  { left: -8px; }
+.cat-cheek-right { right: -8px; }
+
+/* horizontal cheek stripes */
+.cat-cheek-stripe {
+  position: absolute;
+  top: 46px;
+  width: 12px;
+  height: 1.5px;
+  background: var(--cat-gold-tip);
+  border-radius: 1px;
+  opacity: .2;
+  z-index: 2;
+}
+.cat-cheek-stripe-left {
+  left: 2px;
+  box-shadow: 0 5px 0 var(--cat-gold-tip), 0 10px 0 var(--cat-gold-tip);
+}
+.cat-cheek-stripe-right {
+  right: 2px;
+  box-shadow: 0 5px 0 var(--cat-gold-tip), 0 10px 0 var(--cat-gold-tip);
+}
+
+/* ── Ears — larger, wide-set ── */
+.cat-ear {
+  position: absolute;
+  top: -12px;
+  width: 32px;
+  height: 36px;
+  transform-origin: 50% 100%;
+  z-index: 0;
+  filter: drop-shadow(0 1px 2px rgba(74,55,40,.15));
+}
+
+.cat-ear::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(175deg, #d4a858 0%, #b88038 60%, #986828 100%);
+  clip-path: polygon(50% 5%, 10% 96%, 40% 88%, 50% 94%, 60% 88%, 90% 96%);
+}
+
+.cat-ear-left  { left: -4px;  transform: rotate(-12deg); }
+.cat-ear-right { right: -4px; transform: rotate(12deg); }
+
+.cat-ear-inner {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(180deg, #f5f0e8 0%, #e8e0d4 100%);
+  clip-path: polygon(50% 8%, 20% 92%, 80% 92%);
+  z-index: 1;
+  box-shadow: inset 0 1px 2px rgba(255,255,255,.6);
+}
+
+/* ── Eyes — open olive-green, soft liner in fur ── */
 .cat-eye {
   position: absolute;
-  top: 18px;
-  width: 12px;
-  height: 14px;
-  background: #fff;
-  border-radius: 50%;
-  overflow: hidden;
-  transition: height 0.15s;
+  top: 28px;
+  width: 21px;
+  height: 21px;
+  z-index: 6;
 }
-
-.cat-eye-left { left: 10px; }
+.cat-eye-left  { left: 10px; }
 .cat-eye-right { right: 10px; }
 
-.pupil {
+.cat-eye-ball {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #4a5828;
+}
+
+.cat-iris {
   position: absolute;
-  bottom: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 8px;
-  height: 10px;
-  background: #2a2018;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.25) 0%, transparent 22%),
+    radial-gradient(circle at 50% 58%, #b0c070 0%, #849850 25%, #647838 52%, #404e20 100%);
   border-radius: 50%;
 }
 
+.cat-pupil {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -46%);
+  width: 8px;
+  height: 10px;
+  background: radial-gradient(circle at 45% 40%, #141008 0%, #080604 100%);
+  border-radius: 50%;
+}
+
+.cat-highlight {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  width: 4px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+}
+
+/* subtle lash shadow in fur above eye — not a full ring */
+.cat-eye::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 3px;
+  right: 3px;
+  height: 5px;
+  background: radial-gradient(ellipse 100% 100% at 50% 100%, rgba(40, 28, 16, 0.35) 0%, transparent 70%);
+  border-radius: 50%;
+  z-index: 7;
+  pointer-events: none;
+}
+
+/* ── Nose — brick red with dark outline ── */
 .cat-nose {
   position: absolute;
-  top: 30px;
+  top: 50px;
   left: 50%;
   transform: translateX(-50%);
-  width: 8px;
-  height: 6px;
-  background: #e8a0a0;
-  border-radius: 50% 50% 40% 40%;
+  width: 11px;
+  height: 9px;
+  background: var(--cat-pink);
+  border: 1.5px solid var(--cat-brown);
+  border-radius: 45% 45% 50% 50%;
+  z-index: 4;
+}
+.cat-nose::before {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 2px;
+  border-bottom: 1.5px solid var(--cat-brown);
+  border-radius: 0 0 50% 50%;
+  opacity: .6;
 }
 
+/* ── Mouth ── */
 .cat-mouth {
   position: absolute;
-  top: 34px;
+  top: 56px;
   left: 50%;
   transform: translateX(-50%);
-  width: 12px;
-  height: 6px;
-  border-bottom: 2px solid #8b6040;
+  z-index: 4;
+  transition: all .3s;
+}
+.cat-mouth::before {
+  content: "";
+  display: block;
+  width: 8px;
+  height: 4px;
+  margin: 0 auto;
+  border-bottom: 1.5px solid var(--cat-brown);
   border-radius: 0 0 50% 50%;
-  transition: all 0.3s;
+  opacity: .45;
+}
+.cat-mouth::after {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 5px;
+  margin-top: 1px;
+  border-bottom: 1.5px solid var(--cat-brown);
+  border-radius: 0 0 50% 50%;
+  opacity: .25;
 }
 
+/* ── Whiskers — long white ── */
 .cat-whiskers {
   position: absolute;
-  top: 28px;
-  width: 20px;
-  height: 2px;
-  background: #8b7355;
-  opacity: 0.5;
+  top: 48px;
+  z-index: 3;
 }
+.cat-whiskers-left  { left: -26px; }
+.cat-whiskers-right { right: -26px; }
 
-.cat-whiskers-left {
-  left: -16px;
-  box-shadow: 0 4px 0 #8b7355, 0 -4px 0 #8b7355;
+.cat-whiskers span {
+  display: block;
+  height: 1px;
+  background: #fff;
+  opacity: .75;
+  border-radius: 1px;
+  margin-bottom: 4px;
+  box-shadow: 0 0 1px rgba(200,190,170,.5);
 }
+.cat-whiskers-left span  { transform-origin: 100% 50%; }
+.cat-whiskers-right span { transform-origin: 0% 50%; }
 
-.cat-whiskers-right {
-  right: -16px;
-  box-shadow: 0 4px 0 #8b7355, 0 -4px 0 #8b7355;
-}
+.cat-whiskers-left span:nth-child(1)  { width: 26px; transform: rotate(-10deg); }
+.cat-whiskers-left span:nth-child(2)  { width: 28px; transform: rotate(-2deg);  }
+.cat-whiskers-left span:nth-child(3)  { width: 26px; transform: rotate(6deg);   }
 
+.cat-whiskers-right span:nth-child(1) { width: 26px; transform: rotate(10deg);  }
+.cat-whiskers-right span:nth-child(2) { width: 28px; transform: rotate(2deg);   }
+.cat-whiskers-right span:nth-child(3) { width: 26px; transform: rotate(-6deg);  }
+
+/* ── Tail ── */
 .cat-tail {
   position: absolute;
   bottom: 20px;
-  left: calc(50% + 31px);
-  width: 48px;
-  height: 48px;
+  left: calc(50% + 32px);
+  width: 54px;
+  height: 54px;
   pointer-events: none;
-  transform-origin: 6px 44px;
-  transform: rotate(8deg);
+  transform-origin: 8px 50px;
+  transform: rotate(6deg);
   animation: tailWag 3s ease-in-out infinite;
 }
-
 .cat-tail::before {
   content: "";
   position: absolute;
   bottom: 0;
   left: 0;
-  width: 7px;
-  height: 24px;
-  background: linear-gradient(90deg, var(--cat-gold-dark) 15%, var(--cat-gold) 85%);
-  border-radius: 4px 4px 3px 5px;
+  width: 9px;
+  height: 28px;
+  background: linear-gradient(90deg, #986828 10%, #c89848 75%, #d4a858 100%);
+  border-radius: 5px 5px 3px 6px;
   transform-origin: bottom center;
-  transform: rotate(-18deg);
-  box-shadow: inset 1px 0 0 rgba(255, 230, 180, 0.25);
+  transform: rotate(-22deg);
 }
-
 .cat-tail::after {
   content: "";
   position: absolute;
-  bottom: 16px;
-  left: -1px;
-  width: 4px;
-  height: 30px;
-  background: linear-gradient(90deg, var(--cat-gold) 0%, var(--cat-gold-dark) 100%);
-  border-radius: 3px 3px 0 1px;
+  bottom: 18px;
+  left: 1px;
+  width: 5px;
+  height: 34px;
+  background: linear-gradient(90deg, #d4a858, #a87830);
+  border-radius: 3px 3px 1px 2px;
   transform-origin: bottom center;
-  transform: rotate(-42deg);
-  box-shadow: inset 0.5px 0 0 rgba(255, 230, 180, 0.2);
+  transform: rotate(-48deg);
 }
 
 @keyframes tailWag {
-  0%, 100% { transform: rotate(8deg); }
-  50% { transform: rotate(22deg); }
+  0%, 100% { transform: rotate(6deg);  }
+  50%      { transform: rotate(20deg); }
 }
 
+/* ── Paws — thick and round ── */
 .cat-paw {
   position: absolute;
   bottom: -2px;
-  width: 16px;
-  height: 12px;
+  width: 22px;
+  height: 16px;
+  background: var(--cat-white);
+  border-radius: 50%;
+  box-shadow: inset 0 -2px 4px rgba(0,0,0,.04), 0 1px 2px rgba(74,55,40,.06);
+  z-index: 2;
+}
+.cat-paw-left  { left: 14px; }
+.cat-paw-right { right: 12px; }
+
+.cat-paw::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 5px;
   background: var(--cat-cream);
   border-radius: 50%;
+  box-shadow: 5px 0 0 var(--cat-cream), -5px 0 0 var(--cat-cream);
 }
 
-.cat-paw-left { left: 18px; }
-.cat-paw-right { right: 18px; }
-
+/* ── Zzz / Heart ── */
 .cat-zzz,
 .cat-heart {
   position: absolute;
@@ -685,261 +913,326 @@ body {
   opacity: 0;
   pointer-events: none;
 }
+.cat-zzz   { top: -24px; right: -14px; color: #7eb8e8; }
+.cat-heart { top: -30px; left: 50%; transform: translateX(-50%); color: #e85d8d; font-size: 1.6rem; }
 
-.cat-zzz {
-  top: -20px;
-  right: -10px;
-  color: #7eb8e8;
+.cat.show-zzz .cat-zzz     { animation: floatZzz 2s ease infinite; opacity: 1; }
+.cat.show-heart .cat-heart { animation: floatHeart 1s ease forwards; }
+
+@keyframes floatZzz {
+  0%, 100% { opacity: .3; transform: translateY(0); }
+  50%      { opacity: 1;  transform: translateY(-10px); }
+}
+@keyframes floatHeart {
+  0%   { opacity: 1; transform: translateX(-50%) translateY(0) scale(.5); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-36px) scale(1.2); }
 }
 
-.cat-heart {
-  top: -24px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #e85d8d;
-  font-size: 1.5rem;
-}
+/* ── Mood states ── */
+.cat.happy .cat-mouth::before { height: 7px; border-bottom-width: 2.5px; }
+.cat.happy .cat-mouth::after  { height: 7px; border-bottom-width: 2px; opacity: .4; }
 
-/* Cat states */
-.cat.happy .cat-mouth {
-  height: 8px;
-  border-bottom-width: 3px;
-}
-
+/* ── Sad — droopy eyes + worried brows (not flat bars) ── */
 .cat.sad .cat-eye {
-  height: 6px;
-  border-radius: 50% 50% 0 0;
+  height: 18px;
+  overflow: visible;
 }
 
-.cat.sad .cat-mouth {
-  border-bottom: none;
-  border-top: 2px solid #8b6040;
-  top: 36px;
+.cat.sad .cat-eye-ball {
+  height: 16px;
+  width: 100%;
+  border-radius: 50%;
+  background: #4a5828;
+  overflow: hidden;
 }
 
-.cat-container.on-bed .cat {
-  transform: rotate(-18deg) scale(0.88);
+.cat.sad .cat-iris {
+  display: block;
+  inset: 0;
 }
 
-.cat-container.on-bed .cat-head {
-  bottom: 32px;
-  transform: translateX(-50%) rotate(12deg);
+.cat.sad .cat-pupil {
+  display: block;
+  width: 6px;
+  height: 8px;
+  top: 54%;
+  transform: translate(-50%, -50%);
 }
 
-.cat-container.on-bed .cat-tail {
-  transform: rotate(28deg) scale(0.88);
+.cat.sad .cat-highlight {
+  display: none;
 }
 
-.cat.sleeping .cat-eye {
-  height: 3px;
+/* golden upper lid — droops over top of eye */
+.cat.sad .cat-eye-ball::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -3px;
+  right: -3px;
+  height: 12px;
+  background: linear-gradient(to bottom, #c89848 0%, #d4a858 70%, transparent 100%);
+  border-radius: 50% 50% 35% 35%;
+  z-index: 2;
+}
+
+/* outer corner droops down */
+.cat.sad .cat-eye-left .cat-eye-ball {
+  transform: rotate(11deg);
+  transform-origin: 78% 25%;
+}
+
+.cat.sad .cat-eye-right .cat-eye-ball {
+  transform: rotate(-11deg);
+  transform-origin: 22% 25%;
+}
+
+/* worried eyebrow — angles up toward center */
+.cat.sad .cat-eye::after {
+  content: "";
+  position: absolute;
+  top: -8px;
+  width: 13px;
+  height: 2.5px;
+  background: #8a6838;
   border-radius: 2px;
+  z-index: 8;
 }
 
-.cat.sleeping .cat-tail {
+.cat.sad .cat-eye-left::after {
+  left: 1px;
+  transform: rotate(24deg);
+}
+
+.cat.sad .cat-eye-right::after {
+  right: 1px;
+  transform: rotate(-24deg);
+}
+
+.cat.sad .cat-eye::before {
+  display: none;
+}
+
+.cat.sad .cat-mouth::before {
+  height: 3px;
+  border-bottom: none;
+  border-top: 2px solid var(--cat-brown);
+  border-radius: 50% 50% 0 0;
+  width: 8px;
+  transform: rotate(8deg);
+}
+
+.cat.sad .cat-mouth::after {
+  border-bottom: none;
+  border-top: 1.5px solid var(--cat-brown);
+  border-radius: 50% 50% 0 0;
+  width: 8px;
+  transform: rotate(-8deg);
+  margin-top: 0;
+}
+
+/* ── On bed ── */
+.cat-container.on-bed .cat {
+  transform: rotate(-24deg) scale(.78);
+  transform-origin: bottom center;
+}
+.cat-container.on-bed .cat-head {
+  bottom: 42px;
+  transform: translateX(-50%) rotate(6deg);
+}
+.cat-container.on-bed .cat-tail {
+  transform: rotate(48deg) scale(.82);
+}
+.cat-container.on-bed .cat.sleeping .cat-tail {
   animation: none;
-  transform: rotate(32deg);
+  transform: rotate(54deg) scale(.82);
 }
 
 .cat-container.on-bed .cat.sleeping .cat-torso {
   animation: sleepBreath 2.5s ease-in-out infinite;
 }
 
-@keyframes sleepBreath {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.03); }
+/* ── Sleeping ── */
+.cat.sleeping .cat-eye-ball {
+  height: 3px;
+  border-radius: 2px;
+  background: #8a7848;
+}
+.cat.sleeping .cat-eye .cat-iris,
+.cat.sleeping .cat-eye .cat-pupil,
+.cat.sleeping .cat-eye .cat-highlight {
+  display: none;
+}
+.cat.sleeping .cat-tail {
+  animation: none;
 }
 
+@keyframes sleepBreath {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.035); }
+}
+
+/* ── Playing ── */
 .cat.playing .cat-body {
-  animation: catPounce 0.45s ease infinite;
+  animation: catPounce .45s ease infinite;
+}
+.cat.playing .cat-tail {
+  animation: tailPlay .3s ease infinite;
 }
 
 @keyframes catPounce {
   0%, 100% { transform: translateY(0) scaleY(1); }
-  40% { transform: translateY(-14px) scaleY(1.05); }
-  60% { transform: translateY(-14px) scaleY(0.95); }
+  40%      { transform: translateY(-16px) scaleY(1.06); }
+  60%      { transform: translateY(-16px) scaleY(.94); }
 }
-
-.cat.playing .cat-tail {
-  animation: tailPlay 0.3s ease infinite;
-}
-
 @keyframes tailPlay {
-  0%, 100% { transform: rotate(5deg); }
-  50% { transform: rotate(28deg); }
+  0%, 100% { transform: rotate(4deg); }
+  50%      { transform: rotate(26deg); }
 }
 
+/* ── Eating ── */
 .cat.eating .cat-head {
-  animation: headBob 0.32s ease infinite;
+  animation: headBob .32s ease infinite;
 }
-
-.cat.eating .cat-mouth {
-  animation: chew 0.32s ease infinite;
+.cat.eating .cat-mouth::before {
+  animation: mouthChew .32s ease infinite;
 }
 
 @keyframes headBob {
   0%, 100% { transform: translateX(-50%) translateY(0); }
-  50% { transform: translateX(-50%) translateY(6px); }
+  50%      { transform: translateX(-50%) translateY(7px); }
+}
+@keyframes mouthChew {
+  0%, 100% { height: 3px; border-bottom-width: 1.5px; }
+  50%      { height: 8px; border-bottom-width: 3px; }
 }
 
-@keyframes chew {
-  0%, 100% { height: 4px; border-bottom-width: 2px; }
-  50% { height: 8px; border-bottom-width: 3px; }
-}
-
+/* ── Purring ── */
 .cat.purring .cat-torso {
-  animation: purrVibrate 0.1s ease infinite;
+  animation: purrVibrate .1s ease infinite;
 }
-
-.cat.purring .cat-eye {
-  height: 5px;
-  border-radius: 50%;
+.cat.purring .cat-iris {
+  transform: scaleY(0.82);
+  transform-origin: center center;
 }
-
-.cat.toileting .cat-body {
-  transform: translateY(6px) scale(0.9);
-}
-
-.cat.toileting .cat-head {
-  animation: toiletHead 0.5s ease infinite;
-}
-
-.cat.toileting .cat-tail {
-  animation: none;
-  transform: rotate(45deg);
-}
-
-.cat.toileting .cat-paw-left {
-  animation: digLitter 0.38s ease infinite;
-}
-
-.cat.toileting .cat-paw-right {
-  animation: digLitter 0.38s ease 0.15s infinite;
-}
-
-@keyframes toiletHead {
-  0%, 100% { transform: translateX(-50%) translateY(6px); }
-  50% { transform: translateX(-50%) translateY(10px); }
-}
-
-@keyframes digLitter {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-7px); }
+.cat.purring .cat-eye::before {
+  top: -1px;
+  height: 4px;
 }
 
 @keyframes purrVibrate {
-  0%, 100% { transform: translateX(-50%) scale(1); }
-  50% { transform: translateX(calc(-50% + 0.5px)) scale(1.01); }
+  0%, 100% { transform: translateX(calc(-50% - .5px)) scale(1.01); }
+  50%      { transform: translateX(calc(-50% + .5px)) scale(1); }
 }
 
-.cat.show-zzz .cat-zzz {
-  animation: floatZzz 2s ease infinite;
-  opacity: 1;
+/* ── Toileting ── */
+.cat.toileting .cat-body {
+  transform: translateY(4px) scale(.88);
+}
+.cat.toileting .cat-head {
+  animation: toiletHead .5s ease infinite;
+}
+.cat.toileting .cat-tail {
+  animation: none;
+  transform: rotate(40deg);
+}
+.cat.toileting .cat-paw-left {
+  animation: digLitter .38s ease infinite;
+}
+.cat.toileting .cat-paw-right {
+  animation: digLitter .38s ease .15s infinite;
 }
 
-.cat.show-heart .cat-heart {
-  animation: floatHeart 1s ease forwards;
+@keyframes toiletHead {
+  0%, 100% { transform: translateX(-50%) translateY(5px); }
+  50%      { transform: translateX(-50%) translateY(12px); }
+}
+@keyframes digLitter {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
 }
 
-@keyframes floatZzz {
-  0%, 100% { opacity: 0.3; transform: translateY(0); }
-  50% { opacity: 1; transform: translateY(-8px); }
-}
+/* ── Initiative / Self-play animations ── */
 
-@keyframes floatHeart {
-  0% { opacity: 1; transform: translateX(-50%) translateY(0) scale(0.5); }
-  100% { opacity: 0; transform: translateX(-50%) translateY(-30px) scale(1.2); }
-}
-
-/* Initiative actions */
 .cat-container.rubbing {
   animation: rubLeg 1.8s ease-in-out infinite;
 }
-
 @keyframes rubLeg {
   0%, 100% { transform: translateX(-50%); }
-  30% { transform: translateX(calc(-50% - 20px)); }
-  70% { transform: translateX(calc(-50% + 20px)); }
+  30%      { transform: translateX(calc(-50% - 24px)); }
+  70%      { transform: translateX(calc(-50% + 24px)); }
 }
 
 .cat.belly-up {
   transform: rotate(-68deg) translateY(14px);
 }
-
 .cat.belly-up .cat-torso {
-  background: linear-gradient(180deg, var(--cat-cream) 0%, var(--cat-gold) 100%);
+  background: radial-gradient(ellipse 90% 50% at 50% 30%, #fef7e8 0%, #fdf1d6 55%),
+              linear-gradient(180deg, #fdf1d6 0%, #e0c080 100%);
 }
-
 .cat.belly-up .cat-paw-left,
 .cat.belly-up .cat-paw-right {
   animation: bellyPaw 0.6s ease infinite;
 }
-
 @keyframes bellyPaw {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+  50%      { transform: translateY(-6px); }
 }
 
 .cat.nipping .cat-head {
   animation: nipLunge 0.35s ease 5;
 }
-
 @keyframes nipLunge {
   0%, 100% { transform: translateX(-50%) translateY(0); }
-  40% { transform: translateX(calc(-50% + 10px)) translateY(-4px); }
+  40%      { transform: translateX(calc(-50% + 12px)) translateY(-5px); }
 }
 
 .cat.kneading .cat-paw-left {
   animation: kneadPaw 0.45s ease infinite;
 }
-
 .cat.kneading .cat-paw-right {
   animation: kneadPaw 0.45s ease 0.2s infinite;
 }
-
 @keyframes kneadPaw {
   0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-8px) scale(1.1); }
+  50%      { transform: translateY(-10px) scale(1.12); }
 }
 
 .cat.head-rubbing .cat-head {
   animation: headRub 0.35s ease infinite;
 }
-
 @keyframes headRub {
-  0%, 100% { transform: translateX(-50%) rotate(0); }
-  25% { transform: translateX(calc(-50% - 6px)) rotate(-12deg); }
-  75% { transform: translateX(calc(-50% + 6px)) rotate(12deg); }
+  0%,  100% { transform: translateX(-50%) rotate(0); }
+  25%       { transform: translateX(calc(-50% - 8px)) rotate(-12deg); }
+  75%       { transform: translateX(calc(-50% + 8px)) rotate(12deg); }
 }
 
 .cat.call-attention {
   animation: callBounce 0.45s ease 4;
 }
-
 @keyframes callBounce {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  50%      { transform: translateY(-12px); }
 }
 
 .cat.chase-tail {
   animation: spinTail 2.2s ease-in-out;
 }
-
 @keyframes spinTail {
-  0% { transform: rotate(0); }
-  25% { transform: rotate(90deg); }
-  50% { transform: rotate(180deg); }
-  75% { transform: rotate(270deg); }
+  0%   { transform: rotate(0); }
+  25%  { transform: rotate(90deg); }
+  50%  { transform: rotate(180deg); }
+  75%  { transform: rotate(270deg); }
   100% { transform: rotate(360deg); }
 }
 
 .cat-container.self-pounce {
   animation: selfPounce 0.55s ease infinite;
 }
-
 @keyframes selfPounce {
   0%, 100% { transform: translateX(-50%) translateY(0); }
-  40% { transform: translateX(-50%) translateY(-16px) scale(1.05); }
-  60% { transform: translateX(calc(-50% + 12px)) translateY(-8px); }
+  40%      { transform: translateX(-50%) translateY(-18px) scale(1.05); }
+  60%      { transform: translateX(calc(-50% + 14px)) translateY(-10px); }
 }
 
 .play-toy.push-toy {
@@ -947,9 +1240,8 @@ body {
   bottom: 30px;
   animation: toyPush 2s ease-in-out forwards;
 }
-
 @keyframes toyPush {
-  0% { transform: translateX(0); opacity: 1; }
+  0%   { transform: translateX(0); opacity: 1; }
   100% { transform: translateX(-90px); opacity: 0.5; }
 }
 
@@ -1081,7 +1373,7 @@ body {
   }
 
   .room {
-    height: 200px;
+    height: 230px;
   }
 }
 
