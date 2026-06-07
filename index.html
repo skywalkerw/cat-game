@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的金渐层 · 宠物猫</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="game">
+    <header class="header">
+      <h1>🐱 我的金渐层</h1>
+      <p class="subtitle">好好照顾你的小猫咪吧</p>
+    </header>
+
+    <main class="main">
+      <section class="stats-panel">
+        <div class="stat" data-stat="hunger">
+          <span class="stat-icon">🍖</span>
+          <div class="stat-info">
+            <label>饱食度</label>
+            <div class="bar"><div class="bar-fill" id="hunger-bar"></div></div>
+          </div>
+        </div>
+        <div class="stat" data-stat="energy">
+          <span class="stat-icon">💤</span>
+          <div class="stat-info">
+            <label>精力</label>
+            <div class="bar"><div class="bar-fill" id="energy-bar"></div></div>
+          </div>
+        </div>
+        <div class="stat" data-stat="happiness">
+          <span class="stat-icon">😊</span>
+          <div class="stat-info">
+            <label>心情</label>
+            <div class="bar"><div class="bar-fill" id="happiness-bar"></div></div>
+          </div>
+        </div>
+        <div class="stat" data-stat="play">
+          <span class="stat-icon">🎾</span>
+          <div class="stat-info">
+            <label>玩耍欲</label>
+            <div class="bar"><div class="bar-fill" id="play-bar"></div></div>
+          </div>
+        </div>
+        <div class="stat stat-wide" data-stat="bladder">
+          <span class="stat-icon">🚽</span>
+          <div class="stat-info">
+            <label>如厕需求</label>
+            <div class="bar"><div class="bar-fill" id="bladder-bar"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene">
+        <div class="room">
+          <div class="window"></div>
+          <div class="bed"></div>
+          <div class="litter-box" id="litter-box"></div>
+          <div class="food-bowl" id="food-bowl"></div>
+          <div class="play-toy" id="play-toy" aria-hidden="true"></div>
+          <div class="purr-bubbles" id="purr-bubbles" aria-hidden="true">
+            <span class="purr-text">呼噜</span>
+            <span class="purr-text">呼噜</span>
+            <span class="purr-text">呼噜</span>
+          </div>
+          <div class="cat-container" id="cat-container">
+            <div class="cat" id="cat">
+              <div class="cat-body">
+                <div class="cat-tail"></div>
+                <div class="cat-torso"></div>
+                <div class="cat-head">
+                  <div class="cat-ear cat-ear-left"></div>
+                  <div class="cat-ear cat-ear-right"></div>
+                  <div class="cat-face">
+                    <div class="cat-eye cat-eye-left"><div class="pupil"></div></div>
+                    <div class="cat-eye cat-eye-right"><div class="pupil"></div></div>
+                    <div class="cat-nose"></div>
+                    <div class="cat-mouth"></div>
+                    <div class="cat-whiskers cat-whiskers-left"></div>
+                    <div class="cat-whiskers cat-whiskers-right"></div>
+                  </div>
+                </div>
+                <div class="cat-paw cat-paw-left"></div>
+                <div class="cat-paw cat-paw-right"></div>
+              </div>
+              <div class="cat-zzz" id="cat-zzz">Zzz</div>
+              <div class="cat-heart" id="cat-heart">♥</div>
+            </div>
+          </div>
+        </div>
+        <p class="mood-text" id="mood-text">喵～ 主人好！</p>
+      </section>
+
+      <section class="actions">
+        <button class="action-btn" id="btn-feed" title="投喂猫粮">
+          <span class="btn-icon">🍽️</span>
+          <span>投喂</span>
+        </button>
+        <button class="action-btn" id="btn-play" title="用逗猫棒玩耍">
+          <span class="btn-icon">🪶</span>
+          <span>逗猫</span>
+        </button>
+        <button class="action-btn" id="btn-pet" title="摸摸头">
+          <span class="btn-icon">🤚</span>
+          <span>抚摸</span>
+        </button>
+        <button class="action-btn" id="btn-sleep" title="让猫咪睡觉">
+          <span class="btn-icon">🛏️</span>
+          <span>睡觉</span>
+        </button>
+        <button class="action-btn" id="btn-toilet" title="带猫咪上厕所">
+          <span class="btn-icon">🚽</span>
+          <span>上厕所</span>
+        </button>
+      </section>
+
+      <section class="log-panel">
+        <h3>互动记录</h3>
+        <ul class="log-list" id="log-list"></ul>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span id="time-display"></span>
+      <span>· 数据保存在本地，离线可玩</span>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="game.js"></script>
+</body>
+</html>
