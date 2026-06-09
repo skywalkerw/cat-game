@@ -234,6 +234,166 @@ body {
   animation: litterBoxShake 0.45s ease infinite;
 }
 
+.litter-waste {
+  position: absolute;
+  left: 114px;
+  bottom: 22px;
+  width: 28px;
+  height: 10px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity 0.35s ease;
+}
+
+.litter-waste.visible {
+  opacity: 1;
+}
+
+.litter-waste::before,
+.litter-waste::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 10px;
+  height: 7px;
+  background: radial-gradient(ellipse at 50% 35%, #7a5430 0%, #4a3218 72%);
+  border-radius: 50%;
+}
+
+.litter-waste::before {
+  left: 2px;
+}
+
+.litter-waste::after {
+  right: 2px;
+}
+
+.litter-box.has-waste::before {
+  background: linear-gradient(180deg, #e0d0b0 0%, #cbb890 100%);
+}
+
+.trash-bin {
+  position: absolute;
+  right: 20px;
+  top: 78px;
+  width: 34px;
+  height: 42px;
+  z-index: 1;
+  cursor: default;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.trash-bin::before {
+  content: "";
+  position: absolute;
+  inset: 8px 4px 4px;
+  background: linear-gradient(180deg, #9aa8b8 0%, #6d7d90 100%);
+  border: 2px solid #5a6878;
+  border-radius: 4px 4px 6px 6px;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.25);
+}
+
+.trash-bin::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 6px;
+  right: 6px;
+  height: 8px;
+  background: #7a8898;
+  border: 2px solid #5a6878;
+  border-radius: 3px;
+}
+
+.trash-bin.can-dump {
+  cursor: pointer;
+  filter: drop-shadow(0 0 6px rgba(232, 168, 48, 0.55));
+}
+
+.trash-bin.can-dump:hover {
+  transform: scale(1.06);
+}
+
+.trash-bin.receiving {
+  animation: trashReceive 0.45s ease;
+}
+
+@keyframes trashReceive {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08) translateY(2px); }
+}
+
+.poop-scoop {
+  position: absolute;
+  width: 38px;
+  height: 22px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 4;
+  touch-action: none;
+  transition: opacity 0.3s ease;
+}
+
+.poop-scoop.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.poop-scoop.ready {
+  cursor: grab;
+}
+
+.poop-scoop.dragging {
+  cursor: grabbing;
+  z-index: 10;
+  transition: none;
+}
+
+.poop-scoop::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 26px;
+  height: 8px;
+  background: linear-gradient(180deg, #c8d0d8 0%, #98a4b0 100%);
+  border: 2px solid #788694;
+  border-radius: 0 0 10px 10px;
+  transform: rotate(-8deg);
+}
+
+.poop-scoop::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 4px;
+  width: 14px;
+  height: 4px;
+  background: #8896a4;
+  border-radius: 2px;
+  transform: rotate(12deg);
+}
+
+.poop-scoop.has-poop::before {
+  box-shadow: inset 0 -4px 0 -1px #5a3d20;
+}
+
+.scoop-poop {
+  position: absolute;
+  left: 6px;
+  bottom: 7px;
+  width: 12px;
+  height: 8px;
+  background: radial-gradient(ellipse at 50% 35%, #7a5430 0%, #4a3218 72%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.poop-scoop:not(.has-poop) .scoop-poop {
+  display: none;
+}
+
 @keyframes litterDig {
   0%, 100% { transform: scaleY(1); }
   50% { transform: scaleY(0.92); }
@@ -1150,6 +1310,63 @@ body {
 @keyframes digLitter {
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-8px); }
+}
+
+.floor-mess {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 34px;
+  height: 16px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+  transition: opacity 0.35s ease;
+}
+
+.floor-mess.visible {
+  opacity: 1;
+}
+
+.floor-mess::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 4px;
+  width: 18px;
+  height: 11px;
+  background: radial-gradient(ellipse at 50% 35%, #7a5430 0%, #4a3218 72%);
+  border-radius: 50% 50% 42% 42%;
+  box-shadow: 12px 2px 0 -3px #5a3d20, -8px 3px 0 -4px #5a3d20;
+}
+
+.floor-mess::after {
+  content: "";
+  position: absolute;
+  bottom: 1px;
+  right: 2px;
+  width: 10px;
+  height: 7px;
+  background: radial-gradient(ellipse at 50% 40%, #6b4a28 0%, #3d2812 100%);
+  border-radius: 50%;
+}
+
+.cat.accident .cat-body {
+  transform: translateY(6px) scale(0.86);
+}
+
+.cat.accident .cat-head {
+  animation: toiletHead 0.5s ease infinite;
+}
+
+.cat.accident .cat-tail {
+  animation: none;
+  transform: rotate(52deg);
+}
+
+.cat.accident .cat-eye-ball {
+  transform: scaleY(0.72);
 }
 
 /* ── Initiative / Self-play animations ── */

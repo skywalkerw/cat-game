@@ -53,10 +53,15 @@
       </section>
 
       <section class="scene">
-        <div class="room">
+        <div class="room" id="room">
           <div class="window"></div>
           <div class="bed"></div>
           <div class="litter-box" id="litter-box"></div>
+          <div class="litter-waste" id="litter-waste" aria-hidden="true"></div>
+          <div class="trash-bin" id="trash-bin" title="把猫屎倒进垃圾桶"></div>
+          <div class="poop-scoop" id="poop-scoop" aria-hidden="true" title="拖动铲子到垃圾桶">
+            <span class="scoop-poop"></span>
+          </div>
           <div class="food-bowl" id="food-bowl"></div>
           <div class="play-toy" id="play-toy" aria-hidden="true"></div>
           <div class="purr-bubbles" id="purr-bubbles" aria-hidden="true">
@@ -64,6 +69,7 @@
             <span class="purr-text">呼噜</span>
             <span class="purr-text">呼噜</span>
           </div>
+          <div class="floor-mess" id="floor-mess" aria-hidden="true"></div>
           <div class="cat-container" id="cat-container">
             <div class="cat" id="cat">
               <div class="cat-body">

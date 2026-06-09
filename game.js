@@ -7,9 +7,9 @@
 
   const DECAY = {
     hunger: 1.2,
-    energy: 0.8,
+    energy: 0.55,
     play: 1.5,
-    bladder: 0.7,
+    bladder: 0.35,
   };
 
   const THRESHOLDS = {
@@ -30,6 +30,13 @@
     lastInteraction: Date.now(),
     lastSelfPlayAt: 0,
     totalPlayTime: 0,
+    floorMess: false,
+    litterMess: false,
+  };
+
+  const SCOOP_SITES = {
+    floor: { left: "50%", bottom: "14px", transform: "translateX(-50%)" },
+    litter: { left: "128px", bottom: "18px", transform: "translateX(-50%)" },
   };
 
   const elements = {
@@ -41,8 +48,13 @@
     cat: document.getElementById("cat"),
     catContainer: document.getElementById("cat-container"),
     moodText: document.getElementById("mood-text"),
+    room: document.getElementById("room"),
     foodBowl: document.getElementById("food-bowl"),
     litterBox: document.getElementById("litter-box"),
+    litterWaste: document.getElementById("litter-waste"),
+    trashBin: document.getElementById("trash-bin"),
+    poopScoop: document.getElementById("poop-scoop"),
+    floorMess: document.getElementById("floor-mess"),
     playToy: document.getElementById("play-toy"),
     purrBubbles: document.getElementById("purr-bubbles"),
     logList: document.getElementById("log-list"),
@@ -118,6 +130,7 @@
   let initiativeTimer = null;
   let activeAnimation = null;
   let animationTimer = null;
+  let scoopDrag = null;
 
   const ANIM = {
     eat: 2600,
@@ -125,6 +138,7 @@
     pet: 1800,
     sleep: 900,
     toilet: 2800,
+    accident: 3200,
     initiative: 2200,
     selfPlay: 2400,
   };
@@ -139,6 +153,10 @@
     state[key] = clamp(state[key] + delta);
   }
 
+  function isBladderCriticalFull() {
+    return state.bladder >= 100 - THRESHOLDS.critical;
+  }
+
   function loadSave() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -146,6 +164,8 @@
       const saved = JSON.parse(raw);
       Object.assign(state, saved);
       if (typeof state.bladder !== "number") state.bladder = 25;
+      if (typeof state.floorMess !== "boolean") state.floorMess = false;
+      if (typeof state.litterMess !== "boolean") state.litterMess = false;
       applyOfflineDecay();
     } catch {
       /* ignore corrupt save */
@@ -185,7 +205,7 @@
 
   function tickStats(silent) {
     if (state.isSleeping) {
-      state.energy = clamp(state.energy + 2.5);
+      state.energy = clamp(state.energy + 4.5);
       state.hunger = clamp(state.hunger - DECAY.hunger * 0.5);
       if (state.energy >= 95) {
         wakeUp(true);
@@ -208,28 +228,31 @@
   }
 
   function updateHappiness() {
-    let target = 70;
+    let target = 75;
 
-    if (state.hunger < THRESHOLDS.critical) target -= 35;
-    else if (state.hunger < THRESHOLDS.low) target -= 20;
+    if (state.hunger < THRESHOLDS.critical) target -= 25;
+    else if (state.hunger < THRESHOLDS.low) target -= 14;
 
-    if (state.play < THRESHOLDS.critical) target -= 30;
-    else if (state.play < THRESHOLDS.low) target -= 18;
+    if (state.play < THRESHOLDS.critical) target -= 22;
+    else if (state.play < THRESHOLDS.low) target -= 12;
 
-    if (state.bladder > 100 - THRESHOLDS.critical) target -= 25;
-    else if (state.bladder > 100 - THRESHOLDS.low) target -= 12;
+    if (state.bladder > 100 - THRESHOLDS.critical) target -= 14;
+    else if (state.bladder > 100 - THRESHOLDS.low) target -= 6;
 
-    if (state.energy < THRESHOLDS.critical) target -= 15;
-    else if (state.energy < THRESHOLDS.low) target -= 8;
+    if (state.floorMess) target -= 12;
+    if (state.litterMess) target -= 6;
+
+    if (state.energy < THRESHOLDS.critical) target -= 10;
+    else if (state.energy < THRESHOLDS.low) target -= 5;
 
     const idleTime = Date.now() - state.lastInteraction;
-    if (idleTime > 120000) target -= 10;
-    if (idleTime > 300000) target -= 15;
+    if (idleTime > 180000) target -= 5;
+    if (idleTime > 420000) target -= 8;
 
     if (state.isSleeping && state.energy > 50) target += 10;
     if (state.hunger > 70 && state.play > 70 && state.energy > 50) target += 15;
 
-    state.happiness = clamp(state.happiness + (target - state.happiness) * 0.15);
+    state.happiness = clamp(state.happiness + (target - state.happiness) * 0.08);
   }
 
   function getMoodCategory() {
@@ -271,13 +294,14 @@
     elements.cat.classList.remove(
       "eating", "playing", "purring", "show-heart", "sleeping", "show-zzz",
       "belly-up", "nipping", "kneading", "chase-tail", "call-attention", "head-rubbing",
-      "toileting"
+      "toileting", "accident"
     );
     elements.catContainer.classList.remove(
       "at-bowl", "on-bed", "at-litter", "chasing", "rubbing", "self-pounce"
     );
     elements.foodBowl.classList.remove("eating-food", "bounce");
     elements.litterBox.classList.remove("in-use");
+    elements.trashBin.classList.remove("receiving");
     elements.playToy.className = "play-toy";
     elements.purrBubbles.classList.remove("active");
   }
@@ -311,6 +335,131 @@
     else if (value >= 100 - THRESHOLDS.low) el.classList.add("mid");
   }
 
+  function getActiveScoopSite() {
+    if (state.floorMess) return "floor";
+    if (state.litterMess) return "litter";
+    return null;
+  }
+
+  function placeScoopAtSite(site) {
+    const pos = SCOOP_SITES[site];
+    const scoop = elements.poopScoop;
+    scoop.style.left = pos.left;
+    scoop.style.bottom = pos.bottom;
+    scoop.style.top = "auto";
+    scoop.style.right = "auto";
+    scoop.style.transform = pos.transform;
+    scoop.dataset.site = site;
+  }
+
+  function updateScoopDisplay() {
+    if (scoopDrag) return;
+
+    const site = getActiveScoopSite();
+    const scoop = elements.poopScoop;
+
+    if (!site) {
+      scoop.classList.remove("visible", "has-poop", "ready", "dragging");
+      scoop.style.left = "";
+      scoop.style.bottom = "";
+      scoop.style.top = "";
+      scoop.style.transform = "";
+      delete scoop.dataset.site;
+      return;
+    }
+
+    placeScoopAtSite(site);
+    scoop.classList.add("visible", "has-poop", "ready");
+  }
+
+  function isPointInRect(x, y, rect) {
+    return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+  }
+
+  function dumpScoopAtTrash(site) {
+    if (site === "floor") state.floorMess = false;
+    else if (site === "litter") state.litterMess = false;
+
+    state.happiness = clamp(state.happiness + 8);
+    elements.trashBin.classList.add("receiving");
+    setTimeout(() => elements.trashBin.classList.remove("receiving"), 500);
+
+    addLog(
+      site === "floor"
+        ? `你把 ${CAT_NAME} 拉在地上的猫屎倒进垃圾桶了`
+        : "你把猫砂盆里的猫屎倒进垃圾桶了"
+    );
+    showToast("猫屎已清理");
+    state.lastInteraction = Date.now();
+    saveGame();
+  }
+
+  function initScoopDrag() {
+    const scoop = elements.poopScoop;
+    const room = elements.room;
+
+    scoop.addEventListener("pointerdown", (e) => {
+      if (!scoop.classList.contains("has-poop") || actionCooldown || scoopDrag) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      const scoopRect = scoop.getBoundingClientRect();
+      scoopDrag = {
+        site: scoop.dataset.site,
+        offsetX: e.clientX - scoopRect.left,
+        offsetY: e.clientY - scoopRect.top,
+        pointerId: e.pointerId,
+      };
+
+      scoop.classList.add("dragging");
+      scoop.classList.remove("ready");
+      elements.floorMess.classList.remove("visible");
+      elements.litterWaste.classList.remove("visible");
+      scoop.setPointerCapture(e.pointerId);
+    });
+
+    scoop.addEventListener("pointermove", (e) => {
+      if (!scoopDrag || e.pointerId !== scoopDrag.pointerId) return;
+
+      const roomRect = room.getBoundingClientRect();
+      const x = clamp(e.clientX - roomRect.left - scoopDrag.offsetX, 0, roomRect.width - 38);
+      const y = clamp(e.clientY - roomRect.top - scoopDrag.offsetY, 0, roomRect.height - 22);
+
+      scoop.style.left = `${x}px`;
+      scoop.style.top = `${y}px`;
+      scoop.style.bottom = "auto";
+      scoop.style.transform = "none";
+
+      elements.trashBin.classList.toggle(
+        "can-dump",
+        isPointInRect(e.clientX, e.clientY, elements.trashBin.getBoundingClientRect())
+      );
+    });
+
+    function endScoopDrag(e) {
+      if (!scoopDrag || e.pointerId !== scoopDrag.pointerId) return;
+
+      const site = scoopDrag.site;
+      scoop.classList.remove("dragging");
+      elements.trashBin.classList.remove("can-dump");
+
+      if (isPointInRect(e.clientX, e.clientY, elements.trashBin.getBoundingClientRect())) {
+        dumpScoopAtTrash(site);
+      }
+
+      scoopDrag = null;
+      try {
+        scoop.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      render();
+    }
+
+    scoop.addEventListener("pointerup", endScoopDrag);
+    scoop.addEventListener("pointercancel", endScoopDrag);
+  }
+
   function render() {
     setBar(elements.hungerBar, state.hunger);
     setBar(elements.energyBar, state.energy);
@@ -329,8 +478,12 @@
     elements.btnPlay.disabled = state.isSleeping || state.energy < 10 || actionCooldown;
     elements.btnPet.disabled = actionCooldown;
     elements.btnSleep.disabled = actionCooldown;
-    elements.btnToilet.disabled =
-      state.isSleeping || actionCooldown || state.bladder < 20;
+    elements.btnToilet.disabled = state.isSleeping || actionCooldown || state.bladder < 20;
+
+    elements.floorMess.classList.toggle("visible", state.floorMess);
+    elements.litterWaste.classList.toggle("visible", state.litterMess);
+    elements.litterBox.classList.toggle("has-waste", state.litterMess);
+    updateScoopDisplay();
 
     elements.btnSleep.classList.toggle("active", state.isSleeping);
 
@@ -373,10 +526,14 @@
 
   function feed() {
     if (state.isSleeping) return;
+    if (isBladderCriticalFull()) {
+      feedAccident();
+      return;
+    }
     withCooldown(ANIM.eat, () => {
       state.hunger = clamp(state.hunger + 25);
       state.happiness = clamp(state.happiness + 5);
-      state.bladder = clamp(state.bladder + 15);
+      state.bladder = clamp(state.bladder + 8);
       elements.moodText.textContent = "啊呜啊呜～ 好好吃！";
       runAnimation("eat", ANIM.eat, () => {
         elements.catContainer.classList.add("at-bowl");
@@ -388,6 +545,23 @@
       });
       addLog(`你给 ${CAT_NAME} 投喂了猫粮，它埋头猛吃`);
       showToast("投喂成功！");
+    });
+  }
+
+  function feedAccident() {
+    withCooldown(ANIM.accident, () => {
+      state.hunger = clamp(state.hunger + 10);
+      state.happiness = clamp(state.happiness - 25);
+      state.bladder = clamp(state.bladder - 60);
+      state.floorMess = true;
+      elements.moodText.textContent = "喵…… 对不起，憋不住了";
+      runAnimation("accident", ANIM.accident, () => {
+        elements.cat.classList.add("accident", "sad");
+        elements.foodBowl.classList.add("bounce");
+        setTimeout(() => elements.foodBowl.classList.remove("bounce"), 500);
+      });
+      addLog(`如厕需求已经爆表，你硬塞饭给 ${CAT_NAME}，它直接拉在地上了……`);
+      showToast("糟糕！拖动铲子到垃圾桶清理");
     });
   }
 
@@ -431,18 +605,20 @@
   }
 
   function toilet() {
-    if (state.isSleeping || state.bladder < 20) return;
+    if (state.isSleeping || actionCooldown) return;
+    if (state.bladder < 20) return;
     withCooldown(ANIM.toilet, () => {
       state.bladder = clamp(state.bladder - 45);
       state.happiness = clamp(state.happiness + 8);
+      state.litterMess = true;
       elements.moodText.textContent = "嗯…… 舒服多了";
       runAnimation("toilet", ANIM.toilet, () => {
         elements.catContainer.classList.add("at-litter");
         elements.cat.classList.add("toileting");
         elements.litterBox.classList.add("in-use");
       });
-      addLog(`${CAT_NAME} 在猫砂盆里解决了，还认真埋好了`);
-      showToast("上厕所完成！");
+      addLog(`${CAT_NAME} 在猫砂盆里上了厕所，拖动铲子到垃圾桶清理`);
+      showToast("上厕所完成！记得清理猫砂盆");
     });
   }
 
@@ -453,6 +629,7 @@
 
     state.bladder = clamp(state.bladder - 40);
     state.happiness = clamp(state.happiness + 5);
+    state.litterMess = true;
     elements.moodText.textContent = "自己跑去猫砂盆了～";
     addLog(`${CAT_NAME} 憋不住了，自己跑去上厕所`);
     runAnimation("toilet", ANIM.toilet, () => {
@@ -627,6 +804,8 @@
     elements.btnPet.addEventListener("click", pet);
     elements.btnSleep.addEventListener("click", toggleSleep);
     elements.btnToilet.addEventListener("click", toilet);
+
+    initScoopDrag();
 
     elements.catContainer.addEventListener("click", () => {
       if (!actionCooldown) pet();
