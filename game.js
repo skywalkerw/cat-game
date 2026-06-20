@@ -60,6 +60,8 @@
     floorMess: document.getElementById("floor-mess"),
     playToy: document.getElementById("play-toy"),
     gardenInsects: document.getElementById("garden-insects"),
+    gardenPond: document.getElementById("garden-pond"),
+    gardenFish: document.getElementById("garden-fish"),
     purrBubbles: document.getElementById("purr-bubbles"),
     logList: document.getElementById("log-list"),
     timeDisplay: document.getElementById("time-display"),
@@ -117,6 +119,7 @@
       "在这里打滚真舒服",
       "阳光晒晒尾巴～",
       "蝴蝶飞飞，蜜蜂嗡嗡～",
+      "池塘里好像有小鱼在游…",
     ],
   };
 
@@ -148,6 +151,18 @@
   let insectChase = null;
   let lastInsectTick = 0;
   let outdoorCat = null;
+  let pondFish = [];
+  let inPond = false;
+  let fishChase = null;
+  let pondEnterAnim = null;
+
+  const POND_FISH_CONFIG = [
+    { palette: "orange" },
+    { palette: "blue" },
+    { palette: "gold" },
+    { palette: "silver" },
+    { palette: "coral" },
+  ];
 
   const GARDEN_INSECT_CONFIG = [
     { type: "butterfly", palette: "pink" },
@@ -382,7 +397,7 @@
 
     cat.style.transform = `translateX(-50%) scaleX(${outdoorCat.facing})`;
     elements.cat.style.transform = "";
-    cat.classList.toggle("outdoor-walking", walking);
+    cat.classList.toggle("outdoor-walking", walking && !state.isSleeping && !inPond);
   }
 
   function readOutdoorCatFromDom() {
@@ -396,7 +411,7 @@
   }
 
   function tickOutdoorCatWander(dt, now, roomW, roomH) {
-    if (!outdoorCat || insectChase || actionCooldown || activeAnimation || wandPlay) {
+    if (!outdoorCat || insectChase || actionCooldown || activeAnimation || wandPlay || state.isSleeping || inPond || pondEnterAnim || fishChase) {
       if (outdoorCat) syncOutdoorCatEl(false);
       return;
     }
@@ -508,6 +523,324 @@
     syncInsectEl(insect);
   }
 
+  function getPondLayout() {
+    const pond = elements.gardenPond;
+    if (!pond) return null;
+    const roomRect = elements.room.getBoundingClientRect();
+    const pondRect = pond.getBoundingClientRect();
+    const left = pondRect.left - roomRect.left;
+    const top = pondRect.top - roomRect.top;
+    return {
+      left,
+      top,
+      width: pondRect.width,
+      height: pondRect.height,
+      centerX: left + pondRect.width * 0.5,
+      centerY: top + pondRect.height * 0.58,
+      padX: 14,
+      padY: 12,
+    };
+  }
+
+  function getPondFishBounds(layout) {
+    return {
+      minX: layout.padX,
+      maxX: layout.width - layout.padX,
+      minY: layout.padY + 6,
+      maxY: layout.height - layout.padY - 4,
+    };
+  }
+
+  function buildFishMarkup(palette) {
+    return `<span class="pond-fish fish-${palette}"><span class="fish-body"></span><span class="fish-tail"></span></span>`;
+  }
+
+  function syncFishEl(fish, layout) {
+    fish.el.style.left = `${fish.x}px`;
+    fish.el.style.top = `${fish.y}px`;
+    fish.el.style.transform = `translate(-50%, -50%) scaleX(${fish.vx >= 0 ? 1 : -1})`;
+  }
+
+  function randomFishPosition(bounds, avoidX, avoidY) {
+    for (let i = 0; i < 16; i++) {
+      const x = bounds.minX + Math.random() * (bounds.maxX - bounds.minX);
+      const y = bounds.minY + Math.random() * (bounds.maxY - bounds.minY);
+      if (avoidX != null && Math.hypot(x - avoidX, y - avoidY) < 28) continue;
+      return { x, y };
+    }
+    return {
+      x: bounds.minX + (bounds.maxX - bounds.minX) * 0.5,
+      y: bounds.minY + (bounds.maxY - bounds.minY) * 0.5,
+    };
+  }
+
+  function spawnPondFish() {
+    const container = elements.gardenFish;
+    const layout = getPondLayout();
+    if (!container || !layout) return;
+
+    container.innerHTML = "";
+    pondFish = [];
+    const bounds = getPondFishBounds(layout);
+
+    POND_FISH_CONFIG.forEach((cfg) => {
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = "pond-fish-btn";
+      el.setAttribute("aria-label", "小鱼");
+      el.innerHTML = buildFishMarkup(cfg.palette);
+
+      const pos = randomFishPosition(bounds);
+      const fish = {
+        el,
+        palette: cfg.palette,
+        x: pos.x,
+        y: pos.y,
+        vx: (Math.random() > 0.5 ? 1 : -1) * (26 + Math.random() * 18),
+        vy: (Math.random() - 0.5) * 12,
+        turnTimer: 0.8 + Math.random() * 1.6,
+        catchCooldownUntil: 0,
+      };
+
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        startFishChase(fish);
+      });
+
+      pondFish.push(fish);
+      container.appendChild(el);
+      syncFishEl(fish, layout);
+    });
+  }
+
+  function tickPondFish(dt, layout) {
+    if (!layout) return;
+    const bounds = getPondFishBounds(layout);
+    const fleeing = fishChase?.target;
+
+    for (const fish of pondFish) {
+      if (fish.catchCooldownUntil && performance.now() < fish.catchCooldownUntil) {
+        fish.el.style.opacity = "0";
+        continue;
+      }
+      fish.el.style.opacity = "1";
+
+      fish.turnTimer -= dt;
+      if (fish.turnTimer <= 0) {
+        fish.turnTimer = 1 + Math.random() * 2;
+        fish.vx = (fish.vx >= 0 ? 1 : -1) * (24 + Math.random() * 22);
+        fish.vy = (Math.random() - 0.5) * 16;
+      }
+
+      if (fleeing === fish && fishChase) {
+        const dx = fish.x - fishChase.catX;
+        const dy = fish.y - fishChase.catY;
+        const dist = Math.hypot(dx, dy) || 1;
+        fish.vx += (dx / dist) * 55 * dt;
+        fish.vy += (dy / dist) * 55 * dt;
+        const speed = Math.hypot(fish.vx, fish.vy);
+        const maxSpeed = 58;
+        if (speed > maxSpeed) {
+          fish.vx = (fish.vx / speed) * maxSpeed;
+          fish.vy = (fish.vy / speed) * maxSpeed;
+        }
+      }
+
+      fish.x += fish.vx * dt;
+      fish.y += fish.vy * dt;
+
+      if (fish.x < bounds.minX) {
+        fish.x = bounds.minX;
+        fish.vx = Math.abs(fish.vx);
+      } else if (fish.x > bounds.maxX) {
+        fish.x = bounds.maxX;
+        fish.vx = -Math.abs(fish.vx);
+      }
+      if (fish.y < bounds.minY) {
+        fish.y = bounds.minY;
+        fish.vy = Math.abs(fish.vy);
+      } else if (fish.y > bounds.maxY) {
+        fish.y = bounds.maxY;
+        fish.vy = -Math.abs(fish.vy);
+      }
+
+      syncFishEl(fish, layout);
+    }
+  }
+
+  function stopFishChaseQuiet() {
+    fishChase = null;
+    elements.catContainer.classList.remove("fish-chasing");
+    elements.cat.classList.remove("playing");
+  }
+
+  function startFishChase(fish) {
+    if (!inPond || state.isSleeping || actionCooldown) return;
+    if (fish.catchCooldownUntil && performance.now() < fish.catchCooldownUntil) return;
+
+    const layout = getPondLayout();
+    if (!layout || !outdoorCat) return;
+
+    const bounds = getPondFishBounds(layout);
+    const catX = outdoorCat.x - layout.left;
+    const catY = outdoorCat.y - layout.top;
+
+    if (fishChase) {
+      if (fishChase.target === fish) return;
+      fishChase.target = fish;
+      fishChase.endAt = performance.now() + 7000;
+      fishChase.startAt = performance.now();
+      fishChase.followRate = 0.36;
+      addLog(`${CAT_NAME} 去追另一条小鱼！`);
+      showToast("换一条鱼追！");
+      return;
+    }
+
+    fishChase = {
+      target: fish,
+      catX,
+      catY,
+      followRate: 0.36,
+      startAt: performance.now(),
+      endAt: performance.now() + 7000,
+    };
+
+    elements.catContainer.classList.add("fish-chasing");
+    elements.cat.classList.add("playing");
+    addLog(`${CAT_NAME} 扑向小鱼！`);
+    showToast("抓鱼啦！");
+  }
+
+  function endFishChase(caught, fish, layout) {
+    const catchX = fishChase?.catX;
+    const catchY = fishChase?.catY;
+    fishChase = null;
+    elements.catContainer.classList.remove("fish-chasing");
+    elements.cat.classList.remove("playing");
+
+    if (!fish || !layout) return;
+    const bounds = getPondFishBounds(layout);
+
+    if (caught) {
+      state.happiness = clamp(state.happiness + 10);
+      state.play = clamp(state.play + 14);
+      state.energy = clamp(state.energy - 3);
+      elements.moodText.textContent = "哗啦～ 抓到一条小鱼！";
+      addLog(`${CAT_NAME} 在池塘里抓到了一条小鱼（其实没真吃）`);
+      showToast("抓到了！");
+      fish.catchCooldownUntil = performance.now() + 2200;
+      const pos = randomFishPosition(bounds, catchX, catchY);
+      fish.x = pos.x;
+      fish.y = pos.y;
+      syncFishEl(fish, layout);
+      saveGame();
+      return;
+    }
+
+    elements.moodText.textContent = "小鱼溜走了～";
+  }
+
+  function tickPondCat(dt, now, layout) {
+    if (!layout || !outdoorCat) return;
+    const cat = elements.catContainer;
+
+    if (pondEnterAnim) {
+      const t = Math.min((now - pondEnterAnim.startAt) / pondEnterAnim.duration, 1);
+      const e = easeInOut(t);
+      outdoorCat.x = lerp(pondEnterAnim.fromX, pondEnterAnim.toX, e);
+      outdoorCat.y = lerp(pondEnterAnim.fromY, pondEnterAnim.toY, e);
+      syncOutdoorCatEl(t < 1);
+      if (t >= 1) {
+        pondEnterAnim = null;
+        inPond = true;
+        cat.classList.add("in-pond");
+        elements.gardenPond.classList.add("has-cat");
+        elements.moodText.textContent = "扑通～ 在池塘里玩水";
+        addLog(`${CAT_NAME} 跳进池塘摸鱼啦`);
+        showToast("点击小鱼来抓！再点池塘上岸");
+      }
+      return;
+    }
+
+    if (fishChase) {
+      if (state.isSleeping) {
+        stopFishChaseQuiet();
+        return;
+      }
+      const target = fishChase.target;
+      const aimX = target.x;
+      const aimY = target.y;
+      fishChase.catX += (aimX - fishChase.catX) * fishChase.followRate;
+      fishChase.catY += (aimY - fishChase.catY) * fishChase.followRate;
+
+      outdoorCat.x = layout.left + fishChase.catX;
+      outdoorCat.y = layout.top + fishChase.catY + 8;
+      syncOutdoorCatEl(true);
+
+      const dist = Math.hypot(target.x - fishChase.catX, target.y - fishChase.catY);
+      if (dist < 16 || now >= fishChase.endAt) {
+        endFishChase(dist < 16, target, layout);
+      }
+      return;
+    }
+
+    if (inPond) {
+      outdoorCat.x = layout.centerX;
+      outdoorCat.y = layout.centerY + 6;
+      syncOutdoorCatEl(false);
+    }
+  }
+
+  function handlePondClick() {
+    if (state.currentLayer !== "outdoor" || state.isSleeping || actionCooldown || wandPlay) return;
+    if (pondEnterAnim) return;
+
+    if (inPond) {
+      exitPond();
+      return;
+    }
+
+    if (insectChase) stopInsectChaseQuiet();
+
+    const layout = getPondLayout();
+    if (!layout || !outdoorCat) return;
+
+    const fromDom = readOutdoorCatFromDom();
+    pondEnterAnim = {
+      fromX: outdoorCat?.x ?? fromDom.x,
+      fromY: outdoorCat?.y ?? fromDom.y,
+      toX: layout.centerX,
+      toY: layout.centerY + 6,
+      startAt: performance.now(),
+      duration: 580,
+    };
+    elements.catContainer.classList.remove("outdoor-sleep");
+    addLog(`${CAT_NAME} 走向池塘…`);
+    showToast("游向池塘…");
+  }
+
+  function exitPond() {
+    if (!inPond && !pondEnterAnim) return;
+    stopFishChaseQuiet();
+    pondEnterAnim = null;
+    inPond = false;
+    elements.catContainer.classList.remove("in-pond");
+    elements.gardenPond?.classList.remove("has-cat");
+
+    const layout = getPondLayout();
+    if (layout && outdoorCat) {
+      outdoorCat.x = layout.centerX;
+      outdoorCat.y = layout.top + layout.height + 34;
+      outdoorCat.pauseUntil = performance.now() + 500;
+      pickOutdoorCatTarget(elements.room.clientWidth, elements.room.clientHeight);
+      clampOutdoorCat(elements.room.clientWidth, elements.room.clientHeight);
+      syncOutdoorCatEl(false);
+    }
+
+    addLog(`${CAT_NAME} 从池塘上岸了`);
+    showToast("上岸啦～");
+  }
+
   function spawnGardenInsects() {
     const container = elements.gardenInsects;
     if (!container) return;
@@ -613,7 +946,16 @@
       syncInsectEl(insect);
     }
 
+    const pondLayout = getPondLayout();
+    if (pondLayout) {
+      tickPondFish(dt, pondLayout);
+      tickPondCat(dt, now, pondLayout);
+    }
+
     if (insectChase) {
+      if (state.isSleeping) {
+        stopInsectChaseQuiet();
+      } else {
       const target = insectChase.target;
       const lead = 0.42;
       const aimX = target.x + target.vx * lead;
@@ -644,7 +986,8 @@
       if (dist < 28 || now >= insectChase.endAt) {
         endInsectChase(dist < 28, target);
       }
-    } else {
+      }
+    } else if (!inPond && !pondEnterAnim && !fishChase) {
       tickOutdoorCatWander(dt, now, roomW, roomH);
     }
 
@@ -655,6 +998,7 @@
     stopOutdoorInsects();
     initOutdoorCatMotion();
     spawnGardenInsects();
+    spawnPondFish();
     lastInsectTick = performance.now();
     outdoorInsectLoop = requestAnimationFrame(tickGardenInsects);
   }
@@ -665,14 +1009,26 @@
       outdoorInsectLoop = null;
     }
     insectChase = null;
+    inPond = false;
+    pondEnterAnim = null;
+    fishChase = null;
     outdoorCat = null;
     gardenInsects = [];
-    elements.catContainer.classList.remove("outdoor-walking");
+    pondFish = [];
+    elements.catContainer.classList.remove("outdoor-walking", "in-pond", "fish-chasing");
+    elements.gardenPond?.classList.remove("has-cat");
     if (elements.gardenInsects) elements.gardenInsects.innerHTML = "";
+    if (elements.gardenFish) elements.gardenFish.innerHTML = "";
+  }
+
+  function stopInsectChaseQuiet() {
+    insectChase = null;
+    elements.catContainer.classList.remove("chasing");
+    elements.cat.classList.remove("playing");
   }
 
   function startInsectChase(insect) {
-    if (state.currentLayer !== "outdoor" || actionCooldown || wandPlay) return;
+    if (state.currentLayer !== "outdoor" || actionCooldown || wandPlay || state.isSleeping || inPond || pondEnterAnim) return;
     if (insect.chaseCooldownUntil && performance.now() < insect.chaseCooldownUntil) return;
 
     const cat = elements.catContainer;
@@ -1044,10 +1400,14 @@
 
   function applyPositionClasses() {
     elements.catContainer.classList.remove(
-      "at-bowl", "on-bed", "at-litter", "chasing", "rubbing", "self-pounce"
+      "at-bowl", "on-bed", "at-litter", "chasing", "rubbing", "self-pounce", "outdoor-sleep"
     );
     if (state.isSleeping) {
-      elements.catContainer.classList.add("on-bed");
+      if (state.currentLayer === "outdoor") {
+        elements.catContainer.classList.add("outdoor-sleep");
+      } else {
+        elements.catContainer.classList.add("on-bed");
+      }
     }
   }
 
@@ -1059,7 +1419,7 @@
       "toileting", "accident"
     );
     elements.catContainer.classList.remove(
-      "at-bowl", "on-bed", "at-litter", "chasing", "rubbing", "self-pounce"
+      "at-bowl", "on-bed", "at-litter", "chasing", "rubbing", "self-pounce", "outdoor-sleep"
     );
     elements.foodBowl.classList.remove("eating-food", "bounce");
     elements.litterBox.classList.remove("in-use");
@@ -1277,7 +1637,7 @@
   }
 
   function exitOutdoor() {
-    if (state.currentLayer !== "outdoor" || actionCooldown || wandPlay || insectChase) return;
+    if (state.currentLayer !== "outdoor" || actionCooldown || wandPlay || insectChase || fishChase || pondEnterAnim) return;
     withCooldown(ANIM.door, () => {
       setOutdoorLayer(false);
       addLog(`${CAT_NAME} 从绿草地回到家中`);
@@ -1286,7 +1646,7 @@
   }
 
   function handleCatClick() {
-    if (actionCooldown || activeAnimation || wandPlay || insectChase) return;
+    if (actionCooldown || activeAnimation || wandPlay || insectChase || fishChase || inPond || pondEnterAnim) return;
     pet();
   }
 
@@ -1478,13 +1838,22 @@
       if (state.isSleeping) {
         wakeUp(false);
       } else {
+        stopInsectChaseQuiet();
+        stopFishChaseQuiet();
+        if (inPond) exitPond();
         state.isSleeping = true;
-        elements.moodText.textContent = "蜷成一团…… 晚安喵";
+        const outdoor = state.currentLayer === "outdoor";
+        elements.moodText.textContent = outdoor ? "在草地上蜷成一团…… 晚安喵" : "蜷成一团…… 晚安喵";
         runAnimation("sleep", ANIM.sleep, () => {
-          elements.catContainer.classList.add("on-bed");
+          if (outdoor && outdoorCat) {
+            elements.catContainer.classList.add("outdoor-sleep");
+            syncOutdoorCatEl(false);
+          } else {
+            elements.catContainer.classList.add("on-bed");
+          }
           elements.cat.classList.add("sleeping", "show-zzz");
         });
-        addLog(`${CAT_NAME} 跳上小床，蜷起来睡着了`);
+        addLog(outdoor ? `${CAT_NAME} 在草地上睡着了` : `${CAT_NAME} 跳上小床，蜷起来睡着了`);
         showToast("猫咪入睡了～");
       }
     });
@@ -1500,6 +1869,9 @@
     }
     applyPositionClasses();
     applyMoodClasses();
+    if (state.currentLayer === "outdoor" && outdoorCat) {
+      syncOutdoorCatEl(false);
+    }
     if (auto) {
       state.energy = 100;
       elements.moodText.textContent = "伸懒腰～ 睡饱啦！";
@@ -1652,6 +2024,12 @@
     elements.cat.addEventListener("click", (e) => {
       e.stopPropagation();
       handleCatClick();
+    });
+
+    elements.gardenPond?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (e.target.closest(".pond-fish-btn")) return;
+      handlePondClick();
     });
 
     applyCurrentLayer();
