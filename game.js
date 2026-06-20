@@ -32,6 +32,7 @@
     totalPlayTime: 0,
     floorMess: false,
     litterMess: false,
+    currentLayer: "home",
   };
 
   const SCOOP_SITES = {
@@ -51,11 +52,14 @@
     room: document.getElementById("room"),
     foodBowl: document.getElementById("food-bowl"),
     litterBox: document.getElementById("litter-box"),
+    cardboardBox: document.getElementById("cardboard-box"),
+    roomDoor: document.getElementById("room-door"),
     litterWaste: document.getElementById("litter-waste"),
     trashBin: document.getElementById("trash-bin"),
     poopScoop: document.getElementById("poop-scoop"),
     floorMess: document.getElementById("floor-mess"),
     playToy: document.getElementById("play-toy"),
+    gardenInsects: document.getElementById("garden-insects"),
     purrBubbles: document.getElementById("purr-bubbles"),
     logList: document.getElementById("log-list"),
     timeDisplay: document.getElementById("time-display"),
@@ -108,6 +112,12 @@
       "肚子吃饱了，该上厕所啦",
       "哼，猫砂盆在哪儿？",
     ],
+    outdoor: [
+      "哇～ 好大的绿草地！",
+      "在这里打滚真舒服",
+      "阳光晒晒尾巴～",
+      "蝴蝶飞飞，蜜蜂嗡嗡～",
+    ],
   };
 
   const catInitiatives = [
@@ -131,17 +141,50 @@
   let activeAnimation = null;
   let animationTimer = null;
   let scoopDrag = null;
+  let chaseFrame = null;
+  let wandPlay = null;
+  let gardenInsects = [];
+  let outdoorInsectLoop = null;
+  let insectChase = null;
+  let lastInsectTick = 0;
+  let outdoorCat = null;
+
+  const GARDEN_INSECT_CONFIG = [
+    { type: "butterfly", palette: "pink" },
+    { type: "butterfly", palette: "orange" },
+    { type: "butterfly", palette: "blue" },
+    { type: "butterfly", palette: "purple" },
+    { type: "bee" },
+    { type: "bee" },
+    { type: "bee" },
+  ];
+
+  const CHASE_PATHS = {
+    mouse: [
+      { toy: 78, cat: 54, rot: 0, toyBottom: 36 },
+      { toy: 22, cat: 28, rot: 0, toyBottom: 38 },
+      { toy: 74, cat: 52, rot: 0, toyBottom: 34 },
+      { toy: 18, cat: 26, rot: 0, toyBottom: 36 },
+      { toy: 62, cat: 46, rot: 0, toyBottom: 35 },
+      { toy: 48, cat: 42, rot: 0, toyBottom: 36 },
+    ],
+  };
 
   const ANIM = {
-    eat: 2600,
-    play: 2800,
-    pet: 1800,
-    sleep: 900,
-    toilet: 2800,
-    accident: 3200,
-    initiative: 2200,
-    selfPlay: 2400,
+    eat: 1950,
+    play: 6000,
+    pet: 1320,
+    sleep: 670,
+    toilet: 2100,
+    accident: 2380,
+    door: 670,
+    initiative: 1680,
+    selfPlay: 1800,
   };
+
+  const WAND_CAT_FOLLOW = 0.2;
+  const BOX_DIVE_DIST = 34;
+  const BOX_FOLLOW_MULT = 2.5;
 
   const IDLE_SELF_PLAY_MS = 120000;
 
@@ -157,6 +200,722 @@
     return state.bladder >= 100 - THRESHOLDS.critical;
   }
 
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function easeInOut(t) {
+    return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  }
+
+  function isPointInZone(x, y, zone) {
+    return x >= zone.left && x <= zone.right && y >= zone.top && y <= zone.bottom;
+  }
+
+  function getBoxLayout() {
+    const roomRect = elements.room.getBoundingClientRect();
+    const opening = elements.cardboardBox.querySelector(".box-opening");
+    if (!opening) return null;
+
+    const openingRect = opening.getBoundingClientRect();
+    return {
+      wandZone: {
+        left: openingRect.left - roomRect.left - 6,
+        right: openingRect.right - roomRect.left + 6,
+        top: openingRect.top - roomRect.top - 6,
+        bottom: openingRect.bottom - roomRect.top + 6,
+      },
+      entryX: openingRect.left - roomRect.left + openingRect.width * 0.35,
+      entryY: openingRect.top - roomRect.top + openingRect.height * 0.55,
+    };
+  }
+
+  function enterCatBox(wp, layout, roomH, cat) {
+    wp.inBox = true;
+    wp.catX = layout.entryX;
+    wp.catBottom = roomH - layout.entryY;
+    cat.classList.add("in-box");
+    cat.classList.remove("chasing");
+    cat.style.opacity = "0";
+    cat.style.pointerEvents = "none";
+    elements.cardboardBox.classList.add("has-cat");
+    elements.moodText.textContent = "躲进小纸箱啦，只露出尾巴～";
+  }
+
+  function exitCatBox(wp, cat) {
+    wp.inBox = false;
+    cat.classList.remove("in-box");
+    cat.classList.add("chasing");
+    cat.style.opacity = "";
+    cat.style.pointerEvents = "";
+    elements.cardboardBox.classList.remove("has-cat");
+  }
+
+  function stopToyChase() {
+    if (chaseFrame) {
+      cancelAnimationFrame(chaseFrame);
+      chaseFrame = null;
+    }
+
+    if (wandPlay) {
+      document.removeEventListener("pointermove", wandPlay.onMove);
+      elements.room.classList.remove("wand-play");
+      wandPlay = null;
+    }
+
+    elements.cardboardBox.classList.remove("wand-inside", "has-cat");
+
+    const cat = elements.catContainer;
+    const toy = elements.playToy;
+
+    cat.classList.remove("chasing", "in-box");
+    elements.cat.classList.remove("box-peek", "in-box-tail");
+    cat.style.opacity = "";
+    cat.style.pointerEvents = "";
+    cat.style.transition = "";
+    cat.style.left = "";
+    cat.style.bottom = "";
+    cat.style.top = "";
+    cat.style.transform = "";
+    toy.style.transition = "";
+    toy.style.left = "";
+    toy.style.top = "";
+    toy.style.bottom = "";
+    toy.style.transform = "";
+    toy.style.opacity = "";
+    elements.cat.style.transform = "";
+    if (state.currentLayer === "outdoor") {
+      if (outdoorCat) syncOutdoorCatEl(false);
+      else applyOutdoorCatPosition();
+    }
+  }
+
+  const DOOR_ZONE = { right: 82, bottom: 100 };
+
+  function getOutdoorCatPosition() {
+    const roomW = elements.room.clientWidth || 360;
+    const roomH = elements.room.clientHeight || 280;
+    return { x: roomW * 0.5, y: roomH * 0.5 };
+  }
+
+  function applyOutdoorCatPosition(cat = elements.catContainer) {
+    const pos = getOutdoorCatPosition();
+    cat.style.transition = "";
+    cat.style.left = `${pos.x}px`;
+    cat.style.top = `${pos.y}px`;
+    cat.style.bottom = "auto";
+    cat.style.transform = "translateX(-50%)";
+  }
+
+  function getOutdoorCatBounds(roomW, roomH) {
+    return {
+      minX: 78,
+      maxX: roomW - 48,
+      minY: roomH * 0.22,
+      maxY: roomH * 0.82,
+    };
+  }
+
+  function clampOutdoorCat(roomW, roomH) {
+    if (!outdoorCat) return;
+    const bounds = getOutdoorCatBounds(roomW, roomH);
+    outdoorCat.x = clamp(outdoorCat.x, bounds.minX, bounds.maxX);
+    outdoorCat.y = clamp(outdoorCat.y, bounds.minY, bounds.maxY);
+    if (isInDoorZone(outdoorCat.x, outdoorCat.y)) {
+      outdoorCat.x = Math.max(outdoorCat.x, DOOR_ZONE.right + 14);
+      outdoorCat.y = Math.max(outdoorCat.y, DOOR_ZONE.bottom + 6);
+    }
+  }
+
+  function pickOutdoorCatTarget(roomW, roomH) {
+    if (!outdoorCat) return;
+    const bounds = getOutdoorCatBounds(roomW, roomH);
+    for (let i = 0; i < 16; i++) {
+      let x;
+      let y;
+      if (Math.random() < 0.55) {
+        const band = Math.floor(Math.random() * 3);
+        const span = bounds.maxY - bounds.minY;
+        const bandMin = bounds.minY + span * (band / 3);
+        const bandMax = bounds.minY + span * ((band + 1) / 3);
+        x = bounds.minX + Math.random() * (bounds.maxX - bounds.minX);
+        y = bandMin + Math.random() * (bandMax - bandMin);
+      } else {
+        x = bounds.minX + Math.random() * (bounds.maxX - bounds.minX);
+        y = bounds.minY + Math.random() * (bounds.maxY - bounds.minY);
+      }
+      if (isInDoorZone(x, y)) continue;
+      outdoorCat.targetX = x;
+      outdoorCat.targetY = y;
+      return;
+    }
+    outdoorCat.targetX = bounds.minX + 80;
+    outdoorCat.targetY = bounds.minY + 64;
+  }
+
+  function initOutdoorCatMotion() {
+    const pos = getOutdoorCatPosition();
+    outdoorCat = {
+      x: pos.x,
+      y: pos.y,
+      targetX: pos.x,
+      targetY: pos.y,
+      pauseUntil: performance.now() + 350,
+      facing: 1,
+    };
+    syncOutdoorCatEl(false);
+  }
+
+  function syncOutdoorCatEl(walking) {
+    if (!outdoorCat) return;
+    const cat = elements.catContainer;
+    cat.style.transition = "none";
+    cat.style.left = `${outdoorCat.x}px`;
+    cat.style.top = `${outdoorCat.y}px`;
+    cat.style.bottom = "auto";
+    cat.style.transform = "translateX(-50%)";
+
+    const dx = outdoorCat.targetX - outdoorCat.x;
+    if (dx > 4) outdoorCat.facing = 1;
+    else if (dx < -4) outdoorCat.facing = -1;
+    if (!outdoorCat.facing) outdoorCat.facing = 1;
+
+    cat.style.transform = `translateX(-50%) scaleX(${outdoorCat.facing})`;
+    elements.cat.style.transform = "";
+    cat.classList.toggle("outdoor-walking", walking);
+  }
+
+  function readOutdoorCatFromDom() {
+    const cat = elements.catContainer;
+    const roomRect = elements.room.getBoundingClientRect();
+    const catRect = cat.getBoundingClientRect();
+    return {
+      x: catRect.left - roomRect.left + catRect.width / 2,
+      y: catRect.top - roomRect.top + catRect.height * 0.82,
+    };
+  }
+
+  function tickOutdoorCatWander(dt, now, roomW, roomH) {
+    if (!outdoorCat || insectChase || actionCooldown || activeAnimation || wandPlay) {
+      if (outdoorCat) syncOutdoorCatEl(false);
+      return;
+    }
+
+    if (now < outdoorCat.pauseUntil) {
+      syncOutdoorCatEl(false);
+      return;
+    }
+
+    const dist = Math.hypot(outdoorCat.targetX - outdoorCat.x, outdoorCat.targetY - outdoorCat.y);
+    if (dist < 10) {
+      outdoorCat.pauseUntil = now + 500 + Math.random() * 1000;
+      pickOutdoorCatTarget(roomW, roomH);
+      syncOutdoorCatEl(false);
+      return;
+    }
+
+    const step = Math.min(82 * dt, dist);
+    outdoorCat.x += ((outdoorCat.targetX - outdoorCat.x) / dist) * step;
+    outdoorCat.y += ((outdoorCat.targetY - outdoorCat.y) / dist) * step;
+    clampOutdoorCat(roomW, roomH);
+    syncOutdoorCatEl(true);
+  }
+
+  function resumeOutdoorCatAfterChase(catX, catY, roomW, roomH) {
+    if (!outdoorCat) initOutdoorCatMotion();
+    outdoorCat.x = catX;
+    outdoorCat.y = catY + 20;
+    outdoorCat.pauseUntil = performance.now() + 700 + Math.random() * 900;
+    pickOutdoorCatTarget(roomW, roomH);
+    syncOutdoorCatEl(false);
+  }
+
+  function getInsectMoveBounds(type, roomW, roomH) {
+    return {
+      minX: type === "butterfly" ? 92 : 68,
+      maxX: roomW - 36,
+      minY: 28,
+      maxY: roomH * 0.74,
+    };
+  }
+
+  function isInDoorZone(x, y) {
+    return x < DOOR_ZONE.right && y < DOOR_ZONE.bottom;
+  }
+
+  function randomInsectPosition(type, roomW, roomH, avoidX, avoidY) {
+    const bounds = getInsectMoveBounds(type, roomW, roomH);
+    for (let i = 0; i < 28; i++) {
+      const x = bounds.minX + Math.random() * (bounds.maxX - bounds.minX);
+      const y = bounds.minY + Math.random() * (bounds.maxY - bounds.minY);
+      if (isInDoorZone(x, y)) continue;
+      if (avoidX != null && Math.hypot(x - avoidX, y - avoidY) < 90) continue;
+      return { x, y };
+    }
+    return { x: bounds.minX + 48, y: bounds.minY + 72 };
+  }
+
+  function buildInsectMarkup(type, palette) {
+    if (type === "butterfly") {
+      return `
+        <span class="insect-sprite butterfly-sprite insect-${palette}">
+          <span class="insect-wing wing-left" aria-hidden="true"></span>
+          <span class="insect-wing wing-right" aria-hidden="true"></span>
+          <span class="butterfly-body" aria-hidden="true"></span>
+          <span class="butterfly-antenna antenna-left" aria-hidden="true"></span>
+          <span class="butterfly-antenna antenna-right" aria-hidden="true"></span>
+        </span>`;
+    }
+    return `
+      <span class="insect-sprite bee-sprite">
+        <span class="insect-wing wing-left bee-wing" aria-hidden="true"></span>
+        <span class="insect-wing wing-right bee-wing" aria-hidden="true"></span>
+        <span class="bee-head" aria-hidden="true"></span>
+        <span class="bee-thorax" aria-hidden="true"></span>
+        <span class="bee-abdomen" aria-hidden="true"></span>
+      </span>`;
+  }
+
+  function syncInsectEl(insect) {
+    insect.el.style.left = `${insect.x}px`;
+    insect.el.style.top = `${insect.y}px`;
+    const sprite = insect.el.querySelector(".insect-sprite");
+    if (sprite) {
+      sprite.style.transform = `scaleX(${insect.vx >= 0 ? 1 : -1})`;
+    }
+  }
+
+  function steerInsectFromDoor(insect, dt) {
+    if (!isInDoorZone(insect.x, insect.y)) return;
+    const strength = insect.type === "butterfly" ? 130 : 70;
+    insect.vx += ((DOOR_ZONE.right - insect.x) + 24) * strength * dt * 0.08;
+    insect.vy += ((DOOR_ZONE.bottom - insect.y) + 12) * strength * dt * 0.05;
+    if (insect.type === "butterfly" && insect.x < DOOR_ZONE.right + 6) {
+      insect.x = DOOR_ZONE.right + 6;
+      insect.vx = Math.abs(insect.vx) + 18;
+    }
+  }
+
+  function scatterInsect(insect, roomW, roomH, avoidX, avoidY) {
+    const pos = randomInsectPosition(insect.type, roomW, roomH, avoidX, avoidY);
+    insect.x = pos.x;
+    insect.y = pos.y;
+    const angle = Math.random() * Math.PI * 2;
+    const speed = insect.type === "bee" ? 62 : 44;
+    insect.vx = Math.cos(angle) * speed;
+    insect.vy = Math.sin(angle) * speed;
+    insect.turnTimer = 1.2 + Math.random() * 2;
+    syncInsectEl(insect);
+  }
+
+  function spawnGardenInsects() {
+    const container = elements.gardenInsects;
+    if (!container) return;
+
+    container.innerHTML = "";
+    gardenInsects = [];
+
+    const roomW = elements.room.clientWidth;
+    const roomH = elements.room.clientHeight;
+
+    GARDEN_INSECT_CONFIG.forEach((cfg) => {
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = `garden-insect garden-${cfg.type}`;
+      el.setAttribute("aria-label", cfg.type === "bee" ? "蜜蜂" : "蝴蝶");
+      el.innerHTML = buildInsectMarkup(cfg.type, cfg.palette);
+
+      const pos = randomInsectPosition(cfg.type, roomW, roomH);
+      const insect = {
+        el,
+        type: cfg.type,
+        x: pos.x,
+        y: pos.y,
+        vx: (Math.random() - 0.5) * 50,
+        vy: (Math.random() - 0.5) * 36,
+        turnTimer: 1 + Math.random() * 2,
+        chaseCooldownUntil: 0,
+      };
+
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        startInsectChase(insect);
+      });
+
+      gardenInsects.push(insect);
+      container.appendChild(el);
+      syncInsectEl(insect);
+    });
+  }
+
+  function tickGardenInsects(now) {
+    if (state.currentLayer !== "outdoor") {
+      outdoorInsectLoop = null;
+      return;
+    }
+
+    const dt = Math.min((now - lastInsectTick) / 1000, 0.05);
+    lastInsectTick = now;
+
+    const roomW = elements.room.clientWidth;
+    const roomH = elements.room.clientHeight;
+
+    for (const insect of gardenInsects) {
+      const fleeing = insectChase?.target === insect;
+      const bounds = getInsectMoveBounds(insect.type, roomW, roomH);
+
+      insect.turnTimer -= dt;
+      if (insect.turnTimer <= 0) {
+        insect.turnTimer = 1.4 + Math.random() * 2.4;
+        let angle = Math.random() * Math.PI * 2;
+        if (isInDoorZone(insect.x, insect.y) || (insect.type === "butterfly" && insect.x < bounds.minX + 20)) {
+          angle = Math.random() * Math.PI * 0.8 + Math.PI * 0.1;
+        }
+        const speed = (insect.type === "bee" ? 52 : 36) * (fleeing ? 1.55 : 1);
+        insect.vx = Math.cos(angle) * speed;
+        insect.vy = Math.sin(angle) * speed;
+      }
+
+      if (fleeing && insectChase) {
+        const dx = insect.x - insectChase.catX;
+        const dy = insect.y - insectChase.catY;
+        const dist = Math.hypot(dx, dy) || 1;
+        insect.vx += (dx / dist) * 105 * dt;
+        insect.vy += (dy / dist) * 105 * dt;
+        const maxSpeed = insect.type === "bee" ? 98 : 72;
+        const speed = Math.hypot(insect.vx, insect.vy);
+        if (speed > maxSpeed) {
+          insect.vx = (insect.vx / speed) * maxSpeed;
+          insect.vy = (insect.vy / speed) * maxSpeed;
+        }
+      }
+
+      insect.x += insect.vx * dt;
+      insect.y += insect.vy * dt;
+      steerInsectFromDoor(insect, dt);
+
+      if (insect.x < bounds.minX) {
+        insect.x = bounds.minX;
+        insect.vx = Math.abs(insect.vx);
+      } else if (insect.x > bounds.maxX) {
+        insect.x = bounds.maxX;
+        insect.vx = -Math.abs(insect.vx);
+      }
+
+      if (insect.y < bounds.minY) {
+        insect.y = bounds.minY;
+        insect.vy = Math.abs(insect.vy);
+      } else if (insect.y > bounds.maxY) {
+        insect.y = bounds.maxY;
+        insect.vy = -Math.abs(insect.vy);
+      }
+
+      syncInsectEl(insect);
+    }
+
+    if (insectChase) {
+      const target = insectChase.target;
+      const lead = 0.42;
+      const aimX = target.x + target.vx * lead;
+      const aimY = target.y + target.vy * lead;
+      const follow = insectChase.followRate;
+      insectChase.catX += (aimX - insectChase.catX) * follow;
+      insectChase.catY += (aimY - insectChase.catY) * follow;
+
+      const cat = elements.catContainer;
+      cat.style.transition = "none";
+      cat.style.left = `${insectChase.catX}px`;
+      cat.style.top = `${insectChase.catY + 20}px`;
+      cat.style.bottom = "auto";
+      cat.style.transform = "translateX(-50%)";
+
+      if (aimX - insectChase.catX > 6) {
+        elements.cat.style.transform = "scaleX(1)";
+      } else if (insectChase.catX - aimX > 6) {
+        elements.cat.style.transform = "scaleX(-1)";
+      }
+
+      const dist = Math.hypot(target.x - insectChase.catX, target.y - insectChase.catY);
+      if (now - insectChase.startAt > 1800 && dist >= (insectChase.lastDist ?? dist) - 4) {
+        insectChase.followRate = Math.min(insectChase.followRate + 0.02, 0.48);
+      }
+      insectChase.lastDist = dist;
+
+      if (dist < 28 || now >= insectChase.endAt) {
+        endInsectChase(dist < 28, target);
+      }
+    } else {
+      tickOutdoorCatWander(dt, now, roomW, roomH);
+    }
+
+    outdoorInsectLoop = requestAnimationFrame(tickGardenInsects);
+  }
+
+  function startOutdoorInsects() {
+    stopOutdoorInsects();
+    initOutdoorCatMotion();
+    spawnGardenInsects();
+    lastInsectTick = performance.now();
+    outdoorInsectLoop = requestAnimationFrame(tickGardenInsects);
+  }
+
+  function stopOutdoorInsects() {
+    if (outdoorInsectLoop) {
+      cancelAnimationFrame(outdoorInsectLoop);
+      outdoorInsectLoop = null;
+    }
+    insectChase = null;
+    outdoorCat = null;
+    gardenInsects = [];
+    elements.catContainer.classList.remove("outdoor-walking");
+    if (elements.gardenInsects) elements.gardenInsects.innerHTML = "";
+  }
+
+  function startInsectChase(insect) {
+    if (state.currentLayer !== "outdoor" || actionCooldown || wandPlay) return;
+    if (insect.chaseCooldownUntil && performance.now() < insect.chaseCooldownUntil) return;
+
+    const cat = elements.catContainer;
+    const fromDom = readOutdoorCatFromDom();
+    const catX = outdoorCat?.x ?? fromDom.x;
+    const catY = outdoorCat?.y ?? fromDom.y;
+
+    if (insectChase) {
+      if (insectChase.target === insect) {
+        const dist = Math.hypot(insect.x - catX, insect.y - catY);
+        if (dist < 36) return;
+      }
+      insectChase.target = insect;
+      insectChase.endAt = performance.now() + 8000;
+      insectChase.startAt = performance.now();
+      insectChase.lastDist = null;
+      insectChase.followRate = 0.34;
+      addLog(`${CAT_NAME} 转头去追${insect.type === "bee" ? "另一只蜜蜂" : "另一只蝴蝶"}！`);
+      showToast("换目标啦，追追追！");
+      return;
+    }
+
+    insectChase = {
+      target: insect,
+      catX,
+      catY: catY - 20,
+      startAt: performance.now(),
+      endAt: performance.now() + 8000,
+      followRate: 0.34,
+      lastDist: null,
+    };
+
+    cat.classList.add("chasing");
+    elements.cat.classList.add("playing");
+    cat.classList.remove("outdoor-walking");
+    addLog(`${CAT_NAME} 去追${insect.type === "bee" ? "蜜蜂" : "蝴蝶"}啦！`);
+    showToast("追追追！");
+  }
+
+  function endInsectChase(caught, insect) {
+    const catX = insectChase?.catX;
+    const catY = insectChase?.catY;
+    insectChase = null;
+    elements.catContainer.classList.remove("chasing");
+    elements.cat.classList.remove("playing");
+
+    if (!insect) return;
+
+    insect.chaseCooldownUntil = performance.now() + (caught ? 2800 : 1400);
+    const roomW = elements.room.clientWidth;
+    const roomH = elements.room.clientHeight;
+    if (catX != null && catY != null) {
+      resumeOutdoorCatAfterChase(catX, catY, roomW, roomH);
+    }
+
+    if (caught) {
+      state.happiness = clamp(state.happiness + 10);
+      state.play = clamp(state.play + 12);
+      state.energy = clamp(state.energy - 4);
+      elements.moodText.textContent =
+        insect.type === "bee" ? "嗡嗡～ 蜜蜂飞走啦" : "扑棱棱～ 蝴蝶飞走啦";
+      addLog(`${CAT_NAME} 扑了个空，${insect.type === "bee" ? "蜜蜂" : "蝴蝶"}飞走了`);
+      showToast("差一点就抓到了！");
+      scatterInsect(insect, roomW, roomH, catX, catY);
+      saveGame();
+      return;
+    }
+
+    elements.moodText.textContent = "跑太快啦～ 追别的去！";
+    scatterInsect(insect, roomW, roomH, catX, catY);
+  }
+
+  function startWandPlay(duration) {
+    stopToyChase();
+
+    const room = elements.room;
+    const cat = elements.catContainer;
+    const toy = elements.playToy;
+    const roomW = room.clientWidth;
+    const roomH = room.clientHeight;
+    const startX = roomW * 0.5;
+    const startY = roomH * 0.45;
+
+    wandPlay = {
+      wandX: startX,
+      wandY: startY,
+      catX: roomW * 0.5,
+      catBottom: 24,
+      angle: -10,
+      inBox: false,
+      endAt: performance.now() + duration,
+      onMove(e) {
+        if (!wandPlay) return;
+        const rect = room.getBoundingClientRect();
+        wandPlay.wandX = clamp(e.clientX - rect.left, 18, rect.width - 18);
+        wandPlay.wandY = clamp(e.clientY - rect.top, 28, rect.height - 24);
+      },
+    };
+
+    elements.cat.classList.add("playing");
+    cat.classList.add("chasing");
+    cat.style.transition = "none";
+    toy.style.transition = "none";
+    toy.style.opacity = "1";
+    toy.className = "play-toy active wand wand-follow";
+    room.classList.add("wand-play");
+
+    document.addEventListener("pointermove", wandPlay.onMove);
+
+    function tick(now) {
+      if (!wandPlay) return;
+
+      const wp = wandPlay;
+      const layout = getBoxLayout();
+      const wandInBox = layout && isPointInZone(wp.wandX, wp.wandY, layout.wandZone);
+
+      elements.cardboardBox.classList.toggle("wand-inside", Boolean(wandInBox));
+
+      if (wp.inBox) {
+        if (!wandInBox) {
+          exitCatBox(wp, cat);
+        } else {
+          toy.style.left = `${wp.wandX}px`;
+          toy.style.top = `${wp.wandY}px`;
+          toy.style.bottom = "auto";
+          toy.style.transform = `translate(-50%, 0) rotate(${wp.angle}deg)`;
+          if (now >= wp.endAt) {
+            toy.style.opacity = "0";
+            stopToyChase();
+            return;
+          }
+          chaseFrame = requestAnimationFrame(tick);
+          return;
+        }
+      }
+
+      let follow = WAND_CAT_FOLLOW;
+      let targetX = wp.wandX;
+      let targetBottom = clamp(roomH - wp.wandY + 8, 18, roomH - 70);
+
+      if (wandInBox && layout) {
+        follow = WAND_CAT_FOLLOW * BOX_FOLLOW_MULT;
+        targetX = layout.entryX;
+        targetBottom = clamp(roomH - layout.entryY, 18, roomH - 70);
+      }
+
+      wp.catX += (targetX - wp.catX) * follow;
+      wp.catBottom += (targetBottom - wp.catBottom) * follow;
+
+      if (wandInBox && layout) {
+        const entryBottom = roomH - layout.entryY;
+        const dist = Math.hypot(layout.entryX - wp.catX, entryBottom - wp.catBottom);
+        if (dist < BOX_DIVE_DIST) {
+          enterCatBox(wp, layout, roomH, cat);
+        }
+      }
+
+      const dx = wp.wandX - (wp.lastWandX ?? wp.wandX);
+      const dy = wp.wandY - (wp.lastWandY ?? wp.wandY);
+      if (Math.abs(dx) + Math.abs(dy) > 0.8) {
+        wp.angle = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
+      }
+      wp.lastWandX = wp.wandX;
+      wp.lastWandY = wp.wandY;
+
+      toy.style.left = `${wp.wandX}px`;
+      toy.style.top = `${wp.wandY}px`;
+      toy.style.bottom = "auto";
+      toy.style.transform = `translate(-50%, 0) rotate(${wp.angle}deg)`;
+
+      cat.style.left = `${wp.catX}px`;
+      cat.style.bottom = `${wp.catBottom}px`;
+      cat.style.top = "auto";
+      cat.style.transform = "translateX(-50%)";
+
+      if (wp.wandX - wp.catX > 6) {
+        elements.cat.style.transform = "scaleX(1)";
+      } else if (wp.catX - wp.wandX > 6) {
+        elements.cat.style.transform = "scaleX(-1)";
+      }
+
+      if (now >= wp.endAt) {
+        toy.style.opacity = "0";
+        stopToyChase();
+        return;
+      }
+
+      chaseFrame = requestAnimationFrame(tick);
+    }
+
+    chaseFrame = requestAnimationFrame(tick);
+  }
+
+  function startToyChase(type, duration) {
+    stopToyChase();
+
+    const path = CHASE_PATHS[type];
+    const cat = elements.catContainer;
+    const toy = elements.playToy;
+    const start = performance.now();
+
+    cat.classList.add("chasing");
+    cat.style.transition = "none";
+    toy.style.transition = "none";
+    toy.style.opacity = "1";
+
+    function tick(now) {
+      const progress = Math.min((now - start) / duration, 1);
+      const segments = path.length - 1;
+      const scaled = progress * segments;
+      const index = Math.min(Math.floor(scaled), segments - 1);
+      const local = easeInOut(scaled - index);
+      const from = path[index];
+      const to = path[index + 1];
+
+      const toyLeft = lerp(from.toy, to.toy, local);
+      const catLeft = lerp(from.cat, to.cat, local);
+      const toyBottom = lerp(from.toyBottom, to.toyBottom, local);
+
+      toy.style.left = `${toyLeft}%`;
+      toy.style.bottom = `${toyBottom}px`;
+      toy.style.top = "auto";
+      cat.style.left = `${catLeft}%`;
+      cat.style.transform = "translateX(-50%)";
+      toy.style.transform = "";
+
+      const moveDir = to.cat - from.cat;
+      if (Math.abs(moveDir) > 0.4) {
+        elements.cat.style.transform = moveDir > 0 ? "scaleX(1)" : "scaleX(-1)";
+      }
+
+      if (progress < 1) {
+        chaseFrame = requestAnimationFrame(tick);
+        return;
+      }
+
+      toy.style.opacity = "0";
+      chaseFrame = null;
+    }
+
+    chaseFrame = requestAnimationFrame(tick);
+  }
+
   function loadSave() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -166,6 +925,7 @@
       if (typeof state.bladder !== "number") state.bladder = 25;
       if (typeof state.floorMess !== "boolean") state.floorMess = false;
       if (typeof state.litterMess !== "boolean") state.litterMess = false;
+      if (state.currentLayer !== "outdoor") state.currentLayer = "home";
       applyOfflineDecay();
     } catch {
       /* ignore corrupt save */
@@ -205,7 +965,7 @@
 
   function tickStats(silent) {
     if (state.isSleeping) {
-      state.energy = clamp(state.energy + 4.5);
+      state.energy = clamp(state.energy + 6.5);
       state.hunger = clamp(state.hunger - DECAY.hunger * 0.5);
       if (state.energy >= 95) {
         wakeUp(true);
@@ -256,6 +1016,7 @@
   }
 
   function getMoodCategory() {
+    if (state.currentLayer === "outdoor") return "outdoor";
     if (state.isSleeping) return "sleeping";
     if (state.bladder > 100 - THRESHOLDS.low) return "needsToilet";
     if (state.hunger < THRESHOLDS.low) return "hungry";
@@ -291,6 +1052,7 @@
   }
 
   function clearAnimationClasses() {
+    stopToyChase();
     elements.cat.classList.remove(
       "eating", "playing", "purring", "show-heart", "sleeping", "show-zzz",
       "belly-up", "nipping", "kneading", "chase-tail", "call-attention", "head-rubbing",
@@ -460,6 +1222,74 @@
     scoop.addEventListener("pointercancel", endScoopDrag);
   }
 
+  function applyCurrentLayer() {
+    elements.room.classList.toggle("is-outdoor", state.currentLayer === "outdoor");
+  }
+
+  function setOutdoorLayer(outdoor) {
+    state.currentLayer = outdoor ? "outdoor" : "home";
+    applyCurrentLayer();
+    stopToyChase();
+    clearAnimationClasses();
+    elements.catContainer.style.transition = "";
+    elements.cat.style.transform = "";
+    applyPositionClasses();
+    applyMoodClasses();
+    if (outdoor) {
+      applyOutdoorCatPosition();
+      startOutdoorInsects();
+      state.happiness = clamp(state.happiness + 5);
+    } else {
+      stopOutdoorInsects();
+      elements.catContainer.style.left = "";
+      elements.catContainer.style.top = "";
+      elements.catContainer.style.bottom = "";
+      elements.catContainer.style.transform = "";
+    }
+    render();
+    saveGame();
+  }
+
+  function enterOutdoor() {
+    if (state.currentLayer === "outdoor" || actionCooldown || wandPlay || insectChase) return;
+    withCooldown(ANIM.door, () => {
+      runAnimation("door-exit", ANIM.door, () => {
+        const cat = elements.catContainer;
+        const roomRect = elements.room.getBoundingClientRect();
+        const catRect = cat.getBoundingClientRect();
+        cat.style.transition = "left 0.38s ease, top 0.38s ease, bottom 0.38s ease";
+        cat.style.left = `${catRect.left - roomRect.left + catRect.width / 2}px`;
+        cat.style.top = `${catRect.top - roomRect.top}px`;
+        cat.style.bottom = "auto";
+        cat.style.transform = "translateX(-50%)";
+        requestAnimationFrame(() => {
+          const pos = getOutdoorCatPosition();
+          cat.style.left = `${pos.x}px`;
+          cat.style.top = `${pos.y}px`;
+        });
+      }, () => {
+        setOutdoorLayer(true);
+        elements.moodText.textContent = "哇～ 好大的绿草地！";
+      });
+      addLog(`${CAT_NAME} 钻过门，跑到绿草地上了`);
+      showToast("来到绿草地啦！");
+    });
+  }
+
+  function exitOutdoor() {
+    if (state.currentLayer !== "outdoor" || actionCooldown || wandPlay || insectChase) return;
+    withCooldown(ANIM.door, () => {
+      setOutdoorLayer(false);
+      addLog(`${CAT_NAME} 从绿草地回到家中`);
+      showToast("回到家了～");
+    });
+  }
+
+  function handleCatClick() {
+    if (actionCooldown || activeAnimation || wandPlay || insectChase) return;
+    pet();
+  }
+
   function render() {
     setBar(elements.hungerBar, state.hunger);
     setBar(elements.energyBar, state.energy);
@@ -474,11 +1304,15 @@
       applyPositionClasses();
     }
 
-    elements.btnFeed.disabled = state.isSleeping || actionCooldown;
-    elements.btnPlay.disabled = state.isSleeping || state.energy < 10 || actionCooldown;
+    applyCurrentLayer();
+
+    elements.btnFeed.disabled = state.isSleeping || actionCooldown || state.currentLayer === "outdoor";
+    elements.btnPlay.disabled =
+      state.isSleeping || state.energy < 10 || actionCooldown || state.currentLayer === "outdoor";
     elements.btnPet.disabled = actionCooldown;
     elements.btnSleep.disabled = actionCooldown;
-    elements.btnToilet.disabled = state.isSleeping || actionCooldown || state.bladder < 20;
+    elements.btnToilet.disabled =
+      state.isSleeping || actionCooldown || state.bladder < 20 || state.currentLayer === "outdoor";
 
     elements.floorMess.classList.toggle("visible", state.floorMess);
     elements.litterWaste.classList.toggle("visible", state.litterMess);
@@ -549,6 +1383,7 @@
   }
 
   function feedAccident() {
+    if (state.currentLayer === "outdoor") return;
     withCooldown(ANIM.accident, () => {
       state.hunger = clamp(state.hunger + 10);
       state.happiness = clamp(state.happiness - 25);
@@ -567,21 +1402,17 @@
 
   function play() {
     if (state.isSleeping || state.energy < 10) return;
-    const useWand = Math.random() > 0.45;
-    const toyName = useWand ? "逗猫棒" : "老鼠玩具";
     withCooldown(ANIM.play, () => {
       state.play = clamp(state.play + 30);
       state.happiness = clamp(state.happiness + 15);
       state.energy = clamp(state.energy - 8);
       state.hunger = clamp(state.hunger - 5);
-      elements.moodText.textContent = useWand ? "追追追！羽毛别跑！" : "老鼠别逃！被我抓到啦！";
+      elements.moodText.textContent = "追追追！羽毛别跑！";
       runAnimation("play", ANIM.play, () => {
-        elements.cat.classList.add("playing");
-        elements.catContainer.classList.add("chasing");
-        elements.playToy.className = `play-toy active ${useWand ? "wand chase-wand" : "mouse chase-mouse"}`;
+        startWandPlay(ANIM.play);
       });
-      addLog(`${CAT_NAME} 追着${toyName}满屋子跑，玩得很开心`);
-      showToast("玩耍成功！");
+      addLog(`${CAT_NAME} 追着逗猫棒满屋子跑，玩得很开心`);
+      showToast("移动鼠标拖动逗猫棒！");
     });
   }
 
@@ -606,6 +1437,7 @@
 
   function toilet() {
     if (state.isSleeping || actionCooldown) return;
+    if (state.currentLayer === "outdoor") return;
     if (state.bladder < 20) return;
     withCooldown(ANIM.toilet, () => {
       state.bladder = clamp(state.bladder - 45);
@@ -624,6 +1456,7 @@
 
   function maybeAutoToilet() {
     if (state.isSleeping || activeAnimation || actionCooldown) return;
+    if (state.currentLayer === "outdoor") return;
     if (state.bladder < 88) return;
     if (Math.random() > 0.25) return;
 
@@ -741,8 +1574,8 @@
     if (type === "mouse") {
       runAnimation("self-play", ANIM.selfPlay, () => {
         elements.cat.classList.add("playing");
-        elements.catContainer.classList.add("chasing");
-        elements.playToy.className = "play-toy active mouse chase-mouse";
+        elements.playToy.className = "play-toy active mouse";
+        startToyChase("mouse", ANIM.selfPlay);
       });
     } else if (type === "pounce") {
       runAnimation("self-play", ANIM.selfPlay, () => {
@@ -807,9 +1640,25 @@
 
     initScoopDrag();
 
-    elements.catContainer.addEventListener("click", () => {
-      if (!actionCooldown) pet();
+    elements.roomDoor.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (state.currentLayer === "outdoor") {
+        exitOutdoor();
+        return;
+      }
+      enterOutdoor();
     });
+
+    elements.cat.addEventListener("click", (e) => {
+      e.stopPropagation();
+      handleCatClick();
+    });
+
+    applyCurrentLayer();
+    if (state.currentLayer === "outdoor") {
+      applyOutdoorCatPosition();
+      startOutdoorInsects();
+    }
 
     setInterval(() => {
       tickStats(false);
